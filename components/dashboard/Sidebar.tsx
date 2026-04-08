@@ -19,6 +19,7 @@ const navItems = [
   { href: '/dashboard', label: 'Overview', icon: '🏠' },
   { href: '/dashboard/groups', label: 'Groups', icon: '👥' },
   { href: '/dashboard/expenses', label: 'Expenses', icon: '💳' },
+  { href: '/dashboard/history', label: 'History', icon: '📋' },
   { href: '/dashboard/balances', label: 'Balances', icon: '⚖️' },
 ];
 

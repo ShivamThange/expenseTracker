@@ -1,13 +1,15 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Suspense } from 'react';
 
 type Settlement = { from: string; to: string; amount: number };
@@ -18,6 +20,14 @@ type BalancesResponse = {
   balances: BalanceEntry[];
   settlements: Settlement[];
   summary: { userId: string; owes: number }[];
+  recordedSettlements: {
+    id: string;
+    fromUserId: string;
+    toUserId: string;
+    amount: number;
+    status: 'pending' | 'confirmed';
+    createdAt: string;
+  }[];
 };
 type Group = { id: string; name: string; currency: string; members: { id: string; name: string }[] };
 
@@ -50,6 +60,28 @@ function BalancesContent() {
 
   const members = groupDetail?.group?.members ?? [];
   const getName = (id: string) => members.find((m) => m.id === id)?.name ?? id.slice(-6);
+
+  const queryClient = useQueryClient();
+
+  const markPaidMutation = useMutation({
+    mutationFn: (body: { groupId: string; toUserId: string; amount: number }) =>
+      fetch('/api/settlements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json()),
+    onSuccess: (data: any) => {
+      if (data.error) { toast.error(data.error); return; }
+      toast.success('Payment recorded. Waiting for confirmation.');
+      queryClient.invalidateQueries({ queryKey: ['balances', selectedGroup?.id] });
+    },
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/settlements/${id}/confirm`, { method: 'POST' }).then((r) => r.json()),
+    onSuccess: (data: any) => {
+      if (data.error) { toast.error(data.error); return; }
+      toast.success('Payment confirmed!');
+      queryClient.invalidateQueries({ queryKey: ['balances', selectedGroup?.id] });
+    },
+  });
 
   const loading = loadingGroups || loadingBalances;
 
@@ -144,15 +176,54 @@ function BalancesContent() {
                         {' pays '}
                         <span className="font-medium">{getName(s.to)}</span>
                       </span>
-                      <Badge className="bg-primary/10 text-primary hover:bg-primary/10">
-                        {balancesData!.currency} {s.amount.toFixed(2)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary/10 text-primary hover:bg-primary/10">
+                          {balancesData!.currency} {s.amount.toFixed(2)}
+                        </Badge>
+                        {s.from === session?.user?.id && (
+                          <Button size="sm" variant="outline" className="h-6 text-[10px]" disabled={markPaidMutation.isPending}
+                            onClick={() => markPaidMutation.mutate({ groupId: selectedGroup!.id, toUserId: s.to, amount: s.amount })}>
+                            Mark as Paid
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Pending Reimbursements */}
+          {balancesData?.recordedSettlements?.some(s => s.status === 'pending') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base text-yellow-600 dark:text-yellow-500">Pending Confirmations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {balancesData.recordedSettlements.filter(s => s.status === 'pending').map((s) => (
+                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5">
+                      <div className="text-sm">
+                        <span className="font-medium">{getName(s.fromUserId)}</span>
+                        {' sent '}
+                        <span className="font-medium">{balancesData.currency} {s.amount.toFixed(2)}</span>
+                        {' to '}
+                        <span className="font-medium">{getName(s.toUserId)}</span>
+                      </div>
+                      {s.toUserId === session?.user?.id ? (
+                        <Button size="sm" variant="default" className="h-7 text-xs bg-yellow-600 hover:bg-yellow-700" onClick={() => confirmMutation.mutate(s.id)} disabled={confirmMutation.isPending}>
+                          Confirm Received
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground animate-pulse">Waiting...</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

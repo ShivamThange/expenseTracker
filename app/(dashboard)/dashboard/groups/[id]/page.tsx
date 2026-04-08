@@ -31,6 +31,8 @@ export default function GroupDetailPage() {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [expForm, setExpForm] = useState({ description: '', amount: '', category: 'General', payerId: '' });
+  const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
 
   const { data: groupData, isLoading: loadingGroup } = useQuery<{ group: Group }>({
     queryKey: ['group', id],
@@ -79,12 +81,36 @@ export default function GroupDetailPage() {
     if (!group) return;
     const amount = parseFloat(expForm.amount);
     if (!expForm.description || isNaN(amount) || amount <= 0) { toast.error('Please fill all required fields'); return; }
+    
+    let splits: { userId: string; amount: number }[] = [];
+    if (splitMode === 'equal') {
+      const perPerson = amount / group.members.length;
+      splits = group.members.map((m) => ({ userId: m.id, amount: Math.round(perPerson * 100) / 100 }));
+      // Adjust for rounding
+      const diff = Math.round((amount - splits.reduce((s, x) => s + x.amount, 0)) * 100) / 100;
+      if (diff !== 0) splits[0].amount = Math.round((splits[0].amount + diff) * 100) / 100;
+    } else {
+      let customTotal = 0;
+      let hasError = false;
+      splits = group.members.map((m) => {
+        const amt = parseFloat(customSplits[m.id] || '0');
+        if (isNaN(amt) || amt < 0) {
+          hasError = true;
+        }
+        customTotal += amt;
+        return { userId: m.id, amount: amt };
+      });
+      if (hasError) {
+        toast.error('Invalid custom split amount');
+        return;
+      }
+      if (Math.abs(customTotal - amount) > 0.01) {
+        toast.error(`Custom splits sum (${customTotal.toFixed(2)}) must equal total amount (${amount.toFixed(2)})`);
+        return;
+      }
+    }
+
     const payerId = expForm.payerId || (session?.user?.id ?? '');
-    const perPerson = amount / group.members.length;
-    const splits = group.members.map((m) => ({ userId: m.id, amount: Math.round(perPerson * 100) / 100 }));
-    // Adjust for rounding
-    const diff = Math.round((amount - splits.reduce((s, x) => s + x.amount, 0)) * 100) / 100;
-    if (diff !== 0) splits[0].amount = Math.round((splits[0].amount + diff) * 100) / 100;
     addExpenseMutation.mutate({ groupId: id, description: expForm.description, amount, category: expForm.category, payerId, splits });
   };
 
@@ -148,7 +174,40 @@ export default function GroupDetailPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <p className="text-xs text-muted-foreground">Split equally among all {group.members.length} members.</p>
+                <div className="space-y-1.5 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label>Split Mode</Label>
+                    <div className="flex bg-muted p-1 rounded-md">
+                      <button type="button" onClick={() => setSplitMode('equal')} className={`px-3 py-1 text-xs rounded shadow-sm ${splitMode === 'equal' ? 'bg-background font-medium' : 'text-muted-foreground'}`}>Equal</button>
+                      <button type="button" onClick={() => setSplitMode('custom')} className={`px-3 py-1 text-xs rounded shadow-sm ${splitMode === 'custom' ? 'bg-background font-medium' : 'text-muted-foreground'}`}>Custom</button>
+                    </div>
+                  </div>
+                  {splitMode === 'equal' ? (
+                    <p className="text-xs text-muted-foreground pt-1">Split equally among all {group.members.length} members.</p>
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                       {group.members.map(m => (
+                         <div key={m.id} className="flex items-center justify-between gap-2">
+                           <span className="text-sm truncate flex-1">{m.name}</span>
+                           <div className="flex items-center gap-2 max-w-[120px]">
+                             <span className="text-xs text-muted-foreground">{group.currency}</span>
+                             <Input 
+                               type="number" min="0" step="0.01" className="h-8 text-right" 
+                               value={customSplits[m.id] || ''} 
+                               onChange={e => setCustomSplits({...customSplits, [m.id]: e.target.value})} 
+                             />
+                           </div>
+                         </div>
+                       ))}
+                       <div className="flex justify-between text-xs font-medium pt-1">
+                          <span>Total Assigned:</span>
+                          <span className={Math.abs(Object.values(customSplits).reduce((sum, v) => sum + (parseFloat(v)||0), 0) - parseFloat(expForm.amount||'0')) > 0.01 ? 'text-destructive' : 'text-green-600'}>
+                            {group.currency} {Object.values(customSplits).reduce((sum, v) => sum + (parseFloat(v)||0), 0).toFixed(2)}
+                          </span>
+                       </div>
+                    </div>
+                  )}
+                </div>
                 <Button className="w-full" disabled={addExpenseMutation.isPending} onClick={handleAddExpense}>
                   {addExpenseMutation.isPending ? 'Adding...' : 'Add Expense'}
                 </Button>

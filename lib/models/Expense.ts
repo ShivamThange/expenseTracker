@@ -12,6 +12,7 @@ export interface IExpense extends Document {
   category: string;
   payerId: mongoose.Types.ObjectId;
   splits: ISplit[];
+  splitType?: 'equal' | 'custom' | 'full';
   createdBy: mongoose.Types.ObjectId;
   date: Date;
   receiptUrl?: string;
@@ -35,6 +36,7 @@ const ExpenseSchema: Schema<IExpense> = new Schema(
     category: { type: String, required: true, default: 'General' },
     payerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     splits: { type: [SplitSchema], required: true },
+    splitType: { type: String, enum: ['equal', 'custom', 'full'], default: 'equal' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     date: { type: Date, default: Date.now },
     receiptUrl: { type: String },

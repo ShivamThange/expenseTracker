@@ -6,6 +6,7 @@ export interface IGroup extends Document {
   ownerId: mongoose.Types.ObjectId;
   memberIds: mongoose.Types.ObjectId[];
   currency: string;
+  isPersonal?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ const GroupSchema: Schema<IGroup> = new Schema(
       { type: Schema.Types.ObjectId, ref: 'User', required: true }
     ],
     currency: { type: String, default: 'USD', uppercase: true, trim: true, maxlength: 3 },
+    isPersonal: { type: Boolean, default: false },
   },
   {
     timestamps: true,

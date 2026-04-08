@@ -17,11 +17,13 @@ export interface SplitDTO {
 export interface ExpenseDTO {
   id: string;
   groupId: string;
+  groupName?: string;
   description: string;
   amount: number;
   category: string;
   payerId: string;
   splits: SplitDTO[];
+  splitType?: string;
   createdBy: string;
   date: string;
   receiptUrl?: string;
@@ -64,6 +66,7 @@ function toExpenseDTO(doc: Record<string, unknown>): ExpenseDTO {
   return {
     id: (doc._id as mongoose.Types.ObjectId).toString(),
     groupId: (doc.groupId as mongoose.Types.ObjectId).toString(),
+    groupName: doc.groupName as string | undefined,
     description: doc.description as string,
     amount: doc.amount as number,
     category: doc.category as string,
@@ -71,6 +74,7 @@ function toExpenseDTO(doc: Record<string, unknown>): ExpenseDTO {
     splits: (doc.splits as { userId: mongoose.Types.ObjectId; amount: number }[]).map(
       (s) => ({ userId: s.userId.toString(), amount: s.amount })
     ),
+    splitType: doc.splitType as string | undefined,
     createdBy: (doc.createdBy as mongoose.Types.ObjectId).toString(),
     date: (doc.date as Date).toISOString(),
     receiptUrl: doc.receiptUrl as string | undefined,
@@ -133,9 +137,56 @@ export async function getExpensesByGroup(
   ]);
 
   return {
-    expenses: expenses.map((e) =>
-      toExpenseDTO(e as unknown as Record<string, unknown>)
-    ),
+    expenses: expenses.map((e) => {
+      let doc = e as any;
+      if (e.groupId && typeof e.groupId === 'object') {
+        doc = { ...e, groupId: (e as any).groupId._id, groupName: (e as any).groupId.name };
+      }
+      return toExpenseDTO(doc as Record<string, unknown>);
+    }),
+    total,
+    page,
+    limit,
+  };
+}
+
+/**
+ * Get all expenses across all groups involving the user, with pagination.
+ */
+export async function getExpensesByUser(
+  userId: string,
+  options: GetExpensesOptions = {}
+): Promise<{ expenses: ExpenseDTO[]; total: number; page: number; limit: number }> {
+  await connectToDatabase();
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  const { page = 1, limit = 20, category } = options;
+  const skip = (page - 1) * limit;
+
+  // Expenses where the user is either the payer or in the splits array
+  const query: Record<string, unknown> = {
+    $or: [{ payerId: userObjectId }, { 'splits.userId': userObjectId }],
+  };
+  if (category) query.category = category;
+
+  const [expenses, total] = await Promise.all([
+    Expense.find(query)
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('groupId', 'name')
+      .lean(),
+    Expense.countDocuments(query),
+  ]);
+
+  return {
+    expenses: expenses.map((e) => {
+      let doc = e as any;
+      if (e.groupId && typeof e.groupId === 'object') {
+        doc = { ...e, groupId: (e as any).groupId._id, groupName: (e as any).groupId.name };
+      }
+      return toExpenseDTO(doc as Record<string, unknown>);
+    }),
     total,
     page,
     limit,

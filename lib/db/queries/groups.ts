@@ -27,6 +27,7 @@ export interface GroupDTO {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  isPersonal?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ function toGroupDTO(doc: Record<string, unknown>): GroupDTO {
     currency: doc.currency as string,
     createdAt: (doc.createdAt as Date).toISOString(),
     updatedAt: (doc.updatedAt as Date).toISOString(),
+    isPersonal: doc.isPersonal as boolean | undefined,
   };
 }
 
@@ -59,7 +61,7 @@ export async function getGroupsByUser(userId: string): Promise<GroupDTO[]> {
   await connectToDatabase();
   const objectId = new mongoose.Types.ObjectId(userId);
 
-  const groups = await Group.find({ memberIds: objectId })
+  const groups = await Group.find({ memberIds: objectId, isPersonal: { $ne: true } })
     .sort({ updatedAt: -1 })
     .lean();
 
@@ -264,4 +266,30 @@ export async function deleteGroup(
   await group.deleteOne();
 
   return { success: true };
+}
+
+/**
+ * Get or create the user's personal virtual group.
+ */
+export async function getOrCreatePersonalGroup(userId: string): Promise<GroupDTO> {
+  await connectToDatabase();
+  const ownerObjectId = new mongoose.Types.ObjectId(userId);
+
+  let group = await Group.findOne({
+    ownerId: ownerObjectId,
+    isPersonal: true
+  });
+
+  if (!group) {
+    group = await Group.create({
+      name: 'Personal',
+      description: 'Private personal expenses',
+      currency: 'USD',
+      ownerId: ownerObjectId,
+      memberIds: [ownerObjectId],
+      isPersonal: true,
+    });
+  }
+
+  return toGroupDTO((group.toObject ? group.toObject() : group) as unknown as Record<string, unknown>);
 }

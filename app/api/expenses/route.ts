@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
-import { getExpensesByGroup, createExpense } from '@/lib/db/queries/expenses';
+import { getExpensesByGroup, getExpensesByUser, createExpense } from '@/lib/db/queries/expenses';
+import { getOrCreatePersonalGroup } from '@/lib/db/queries/groups';
 
 /**
  * GET /api/expenses?groupId=&page=&limit=&category=
@@ -18,12 +19,13 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '20', 10), 100);
   const category = searchParams.get('category') ?? undefined;
 
-  if (!groupId) {
-    return NextResponse.json({ error: 'groupId query parameter is required' }, { status: 400 });
-  }
-
   try {
-    const result = await getExpensesByGroup(groupId, session.user.id, { page, limit, category });
+    let result;
+    if (!groupId || groupId === 'all') {
+      result = await getExpensesByUser(session.user.id, { page, limit, category });
+    } else {
+      result = await getExpensesByGroup(groupId, session.user.id, { page, limit, category });
+    }
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
@@ -46,14 +48,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { groupId, description, amount, category, payerId, splits, date, receiptUrl } = body;
+    let { groupId, description, amount, category, payerId, splits, date, receiptUrl } = body;
 
     // Basic input validation
-    if (!groupId || !description || amount == null || !payerId || !splits) {
+    if (!description || amount == null || !payerId || !splits) {
       return NextResponse.json(
-        { error: 'Missing required fields: groupId, description, amount, payerId, splits' },
+        { error: 'Missing required fields: description, amount, payerId, splits' },
         { status: 400 }
       );
+    }
+
+    if (!groupId) {
+       const personalGroup = await getOrCreatePersonalGroup(session.user.id);
+       groupId = personalGroup.id;
     }
     if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json({ error: 'Amount must be a positive number' }, { status: 400 });

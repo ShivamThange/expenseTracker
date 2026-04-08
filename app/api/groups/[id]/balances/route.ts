@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { getGroupById } from '@/lib/db/queries/groups';
 import { getExpensesByGroup } from '@/lib/db/queries/expenses';
+import { getSettlementsByGroup } from '@/lib/db/queries/settlements';
 import { calculateBalances, getBalanceSummary } from '@/lib/utils/balance-calculator';
 
 type Params = { params: Promise<{ id: string }> };
@@ -38,6 +39,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
       splits: e.splits,
     }));
 
+    // Treat confirmed settlements as expenses where `fromUserId` pays `toUserId`
+    const groupSettlements = await getSettlementsByGroup(id, session.user.id);
+    for (const s of groupSettlements) {
+      if (s.status === 'confirmed') {
+        expenseRecords.push({
+          payerId: s.fromUserId,
+          amount: s.amount,
+          splits: [{ userId: s.toUserId, amount: s.amount }],
+        });
+      }
+    }
+
     const { balances, settlements } = calculateBalances(expenseRecords);
 
     // Serialize Map to array for JSON response
@@ -55,6 +68,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       balances: balancesArray,
       settlements,
       summary,
+      recordedSettlements: groupSettlements,
     });
   } catch (error) {
     console.error('[GET /api/groups/[id]/balances]', error);
