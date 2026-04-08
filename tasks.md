@@ -29,7 +29,9 @@
 - `[x]` AGENT_TASK_502: `GET/PATCH/DELETE /api/groups/[id]`, members, balances
 - `[x]` AGENT_TASK_503: `GET/POST /api/expenses`, `GET/PATCH/DELETE /api/expenses/[id]`
 - `[x]` AGENT_TASK_504: `POST /api/invitations`, `GET/POST /api/invitations/[token]`, accept
-- `[ ]` AGENT_TASK_601-603: AI Utilities and Controllers
+- `[x]` AGENT_TASK_601: AI Client (`lib/ai/client.ts`) — Gemini singleton with rate limiting, timeout, safety
+- `[x]` AGENT_TASK_602: AI Categorize (`/api/ai/categorize`) — Expense auto-categorization
+- `[x]` AGENT_TASK_603: AI Insights (`/api/ai/insights`) — Group spending insights with fallback
 
 ## Phase 7, 8 & 9: Frontend, Emails, Mobile Apps
 - `[ ]` AGENT_TASK_701-708: Frontend React Development

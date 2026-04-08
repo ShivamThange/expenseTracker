@@ -11,7 +11,7 @@ This file serves as persistent memory across conversations. The Assistant must r
 - ✅ **Phase 3 (Authentication System)**: NextAuth v5 (beta) setup with Credentials Provider. Edge-compatible `middleware.ts` guarding `/dashboard`. Registration, Verification, and Password Reset APIs implemented using React Email & Resend. Foundational Auth UI forms mapped under `app/(auth)`.
 - ✅ **Phase 4 (Protected Routes & Data Access)**: COMPLETE. DAL implemented: `lib/db/queries/groups.ts` (group CRUD + membership gating), `lib/db/queries/expenses.ts` (expense CRUD + member validation), `lib/utils/balance-calculator.ts` (greedy debt-settlement algorithm).
 - ✅ **Phase 5 (API Routes)**: COMPLETE. REST endpoints for Groups (`/api/groups`, `/api/groups/[id]`, members, balances), Expenses (`/api/expenses`, `/api/expenses/[id]`), and Invitations (`/api/invitations`, `/api/invitations/[token]`, accept). All routes session-gated and delegate to the Phase 4 DAL.
-- ⏳ **Phase 6 (AI Layer)**: PENDING. (Gemini categorize + insights endpoints).
+- ✅ **Phase 6 (AI Layer)**: COMPLETE. Gemini integration via `@google/generative-ai` SDK. `lib/ai/client.ts` provides a singleton wrapper with token-bucket rate limiting (10 req/min), 15s timeout, and safety filters. Two API endpoints: `POST /api/ai/categorize` (maps descriptions to predefined categories, deterministic temp=0.1) and `POST /api/ai/insights` (aggregates group expenses and generates spending analysis with structured JSON output). Both endpoints gracefully fallback when AI is unavailable.
 - ⏳ **Phase 7+ (Frontend)**: PENDING. (Dashboard UI, Group/Expense management, Balance visualisation).
 
 ## Key Architectural Decisions & Gotchas
