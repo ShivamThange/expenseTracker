@@ -13,19 +13,22 @@
 - `[x]` AGENT_TASK_105: Invitation Model Schema
 
 ## Phase 3: Authentication System
-- `[ ]` AGENT_TASK_201: NextAuth Configuration
-- `[ ]` AGENT_TASK_202: Registration API Endpoint
-- `[ ]` AGENT_TASK_203: Email Verification System
-- `[ ]` AGENT_TASK_204: Password Reset Flow
+- `[x]` AGENT_TASK_201: NextAuth Configuration
+- `[x]` AGENT_TASK_202: Registration API Endpoint
+- `[x]` AGENT_TASK_203: Email Verification System
+- `[x]` AGENT_TASK_204: Password Reset Flow
 
 ## Phase 4: Protected Routes & Data Access
-- `[ ]` AGENT_TASK_301: Authentication Middleware
-- `[ ]` AGENT_TASK_401: Secure Data Access Utilities
-- `[ ]` AGENT_TASK_402: Expense Data Access Layer
-- `[ ]` AGENT_TASK_403: Balance Calculation Engine
+- `[x]` AGENT_TASK_301: Authentication Middleware
+- `[x]` AGENT_TASK_401: Secure Data Access Utilities (`lib/db/queries/groups.ts`)
+- `[x]` AGENT_TASK_402: Expense Data Access Layer (`lib/db/queries/expenses.ts`)
+- `[x]` AGENT_TASK_403: Balance Calculation Engine (`lib/utils/balance-calculator.ts`)
 
 ## Phase 5 & 6: API Routes & AI Layers
-- `[ ]` AGENT_TASK_501-504: API Routes Integration
+- `[x]` AGENT_TASK_501: `GET/POST /api/groups`
+- `[x]` AGENT_TASK_502: `GET/PATCH/DELETE /api/groups/[id]`, members, balances
+- `[x]` AGENT_TASK_503: `GET/POST /api/expenses`, `GET/PATCH/DELETE /api/expenses/[id]`
+- `[x]` AGENT_TASK_504: `POST /api/invitations`, `GET/POST /api/invitations/[token]`, accept
 - `[ ]` AGENT_TASK_601-603: AI Utilities and Controllers
 
 ## Phase 7, 8 & 9: Frontend, Emails, Mobile Apps
