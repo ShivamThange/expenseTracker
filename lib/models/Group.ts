@@ -33,7 +33,7 @@ GroupSchema.path('memberIds').validate(function (value: mongoose.Types.ObjectId[
   return value.length >= 1 && value.length <= 50;
 }, 'Group must have between 1 and 50 members');
 
-GroupSchema.pre('save', function (next) {
+GroupSchema.pre('save', function () {
   // Ensure the owner is part of the members list
   if (this.isModified('ownerId') || this.isModified('memberIds')) {
     const ownerIdStr = this.ownerId.toString();
@@ -45,7 +45,6 @@ GroupSchema.pre('save', function (next) {
       this.memberIds.push(this.ownerId);
     }
   }
-  next();
 });
 
 export const Group: Model<IGroup> = mongoose.models.Group || mongoose.model<IGroup>('Group', GroupSchema);
