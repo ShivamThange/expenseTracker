@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 
 export interface IUser extends Document {
   email: string;
@@ -8,6 +7,7 @@ export interface IUser extends Document {
   name: string;
   emailVerified: Date | null;
   avatar?: string;
+  monthlyBudget?: number;
   verifyEmailToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -25,6 +25,7 @@ const UserSchema: Schema<IUser> = new Schema(
     name: { type: String, required: true, trim: true },
     emailVerified: { type: Date, default: null },
     avatar: { type: String },
+    monthlyBudget: { type: Number, default: 0, min: 0 },
     verifyEmailToken: { type: String },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
@@ -42,12 +43,14 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
 };
 
 UserSchema.methods.generateVerificationToken = function (): string {
+  const crypto = require('crypto');
   const token = crypto.randomBytes(32).toString('hex');
   this.verifyEmailToken = crypto.createHash('sha256').update(token).digest('hex');
   return token; // Send raw token to user, store hashed token
 };
 
 UserSchema.methods.generateResetToken = function (): string {
+  const crypto = require('crypto');
   const token = crypto.randomBytes(32).toString('hex');
   this.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
   this.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour

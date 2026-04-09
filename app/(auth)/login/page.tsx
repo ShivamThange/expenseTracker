@@ -55,56 +55,56 @@ export default function LoginPage() {
   return (
     <div className="w-full">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome Back</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Sign in to your account</p>
+        <h1 className="text-3xl font-black uppercase tracking-tighter text-foreground">Terminal Access</h1>
+        <p className="text-sm text-muted-foreground font-mono mt-2 tracking-widest uppercase">Authenticate to continue</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-lg">
+          <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-sm font-mono">
             {error}
           </div>
         )}
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Email Address</label>
           <input
             name="email"
             type="email"
             required
-            className="w-full mt-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-4 py-3 border border-border rounded-sm focus:ring-1 focus:ring-primary focus:border-primary bg-[#111] text-foreground font-mono transition-colors"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Password</label>
           <input
             name="password"
             type="password"
             required
-            className="w-full mt-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-4 py-3 border border-border rounded-sm focus:ring-1 focus:ring-primary focus:border-primary bg-[#111] text-foreground font-mono transition-colors"
           />
         </div>
 
-        <div className="flex items-center justify-between mt-2">
-          <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500 hover:underline">
-            Forgot password?
+        <div className="flex items-center justify-between mt-4">
+          <Link href="/forgot-password" className="text-xs uppercase tracking-wider text-secondary hover:text-secondary/80 focus:outline-none transition-colors">
+            Breach Password?
           </Link>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 px-4 bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white rounded-lg font-medium shadow transition-colors disabled:opacity-50"
+          className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-sm font-bold uppercase tracking-widest transition-all disabled:opacity-50 neon-glow mt-6"
         >
-          {loading ? 'Signing in...' : 'Sign in'}
+          {loading ? 'Authenticating...' : 'Initiate Session'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-        Don&apos;t have an account?{' '}
-        <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500 hover:underline">
-          Sign up
+      <p className="mt-8 text-center text-xs font-mono text-muted-foreground uppercase tracking-widest">
+        Awaiting credentials?{' '}
+        <Link href="/register" className="font-bold text-primary hover:text-primary/80 transition-colors">
+          Initialize
         </Link>
       </p>
     </div>

@@ -1,24 +1,23 @@
 import 'server-only';
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 // ---------------------------------------------------------------------------
-// AGENT_TASK_601: Gemini AI Client
+// AGENT_TASK_601: Gemini AI Client (Updated for @google/genai SDK + Gemini 3)
 //
-// Singleton wrapper around the Google Generative AI SDK with:
+// Singleton wrapper around the new Google GenAI SDK with:
 //   - Rate limiting (token-bucket style, 10 requests / minute)
 //   - Timeout control (15s default)
 //   - Structured error handling
-//   - Safety settings to block harmful content
 // ---------------------------------------------------------------------------
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
 if (!GEMINI_API_KEY) {
   console.warn('[AI] GEMINI_API_KEY is not set — AI features will be disabled.');
 }
 
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
 // ---------------------------------------------------------------------------
 // Rate limiter — simple token bucket (10 requests per 60s window)
@@ -52,17 +51,6 @@ function consumeRateToken(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Safety settings
-// ---------------------------------------------------------------------------
-
-const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-];
-
-// ---------------------------------------------------------------------------
 // Core generation function
 // ---------------------------------------------------------------------------
 
@@ -71,14 +59,18 @@ export interface GenerateOptions {
   systemInstruction?: string;
   /** User prompt */
   prompt: string;
+  /** Optional base64 images to process */
+  imageParts?: Array<{ inlineData: { data: string; mimeType: string } }>;
   /** Timeout in milliseconds (default: 15000) */
   timeoutMs?: number;
-  /** Model to use (default: gemini-2.0-flash) */
+  /** Model to use (default: gemini-2.5-flash) */
   model?: string;
-  /** Temperature for generation (default: 0.3 — deterministic for categorization) */
+  /** Temperature for generation (default: 1.0 — recommended for Gemini 3) */
   temperature?: number;
   /** Max output tokens */
   maxOutputTokens?: number;
+  /** Response mimetype (e.g. application/json) */
+  responseMimeType?: string;
 }
 
 export interface GenerateResult {
@@ -95,21 +87,23 @@ export interface GenerateError {
 export type GenerateResponse = GenerateResult | GenerateError;
 
 /**
- * Generate text using Google Gemini.
+ * Generate text using Google Gemini via the new @google/genai SDK.
  * Includes built-in rate limiting, timeout control, and structured error handling.
  */
 export async function generate(options: GenerateOptions): Promise<GenerateResponse> {
   const {
     systemInstruction,
     prompt,
+    imageParts,
     timeoutMs = 15_000,
-    model: modelName = 'gemini-2.0-flash',
-    temperature = 0.3,
+    model: modelName = 'gemini-2.5-flash',
+    temperature = 1.0,
     maxOutputTokens = 1024,
+    responseMimeType,
   } = options;
 
   // Check API key
-  if (!genAI) {
+  if (!ai) {
     return { success: false, error: 'Gemini API key is not configured', code: 'NO_API_KEY' };
   }
 
@@ -119,41 +113,42 @@ export async function generate(options: GenerateOptions): Promise<GenerateRespon
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      safetySettings,
-      generationConfig: {
-        temperature,
-        maxOutputTokens,
-      },
-      ...(systemInstruction ? { systemInstruction } : {}),
-    });
+    // Build the contents array for the new SDK
+    const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [];
+
+    if (imageParts) {
+      for (const img of imageParts) {
+        parts.push(img);
+      }
+    }
+
+    parts.push({ text: prompt });
 
     // Race between generation and timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('AI request timed out')), timeoutMs);
+    });
 
-    try {
-      const result = await Promise.race([
-        model.generateContent(prompt),
-        new Promise<never>((_, reject) => {
-          controller.signal.addEventListener('abort', () =>
-            reject(new Error('AI request timed out'))
-          );
-        }),
-      ]);
+    const generatePromise = ai.models.generateContent({
+      model: modelName,
+      contents: [{ role: 'user', parts }],
+      config: {
+        temperature,
+        maxOutputTokens,
+        ...(systemInstruction ? { systemInstruction } : {}),
+        ...(responseMimeType ? { responseMimeType } : {}),
+      },
+    });
 
-      const response = result.response;
-      const text = response.text();
+    const result = await Promise.race([generatePromise, timeoutPromise]);
 
-      if (!text || text.trim().length === 0) {
-        return { success: false, error: 'AI returned an empty response', code: 'GENERATION_ERROR' };
-      }
+    const text = result.text;
 
-      return { success: true, text: text.trim() };
-    } finally {
-      clearTimeout(timeout);
+    if (!text || text.trim().length === 0) {
+      return { success: false, error: 'AI returned an empty response', code: 'GENERATION_ERROR' };
     }
+
+    return { success: true, text: text.trim() };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown AI error';
 
