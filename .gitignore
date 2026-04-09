@@ -48,3 +48,5 @@ AI_CONTEXT.md
 CLAUDE.md
 AGENTS.md
 scripts/test-*.mjs
+
+.vercel

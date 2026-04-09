@@ -1,9 +1,31 @@
-import { auth } from './lib/auth/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-export default auth((req) => {
-  // req.auth contains the session if the user is logged in
-});
+// Force Node.js runtime instead of Edge to avoid module compatibility issues
+export const runtime = 'nodejs';
+
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Check if the user is authenticated via JWT
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const isLoggedIn = !!token;
+
+  const isOnDashboard = pathname.startsWith('/dashboard');
+  const isAuthPage = pathname === '/login' || pathname === '/register';
+
+  if (isOnDashboard && !isLoggedIn) {
+    // Redirect unauthenticated users to login
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  if (isAuthPage && isLoggedIn) {
+    // Redirect authenticated users away from auth pages
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
