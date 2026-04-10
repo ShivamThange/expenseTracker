@@ -54,6 +54,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google') {
+        if (!user.email) return false;
+        
         await connectToDatabase();
         let dbUser = await User.findOne({ email: user.email });
 
@@ -74,6 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger, session, account }) {
       if (account && user) {
         if (account.provider === 'google') {
+          if (!user.email) return token;
           await connectToDatabase();
           const dbUser = await User.findOne({ email: user.email });
           if (dbUser) {
