@@ -32,12 +32,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        // Unverified users: return null so NextAuth emits CredentialsSignin.
-        // The login page then calls /api/auth/check-verified to show the right message.
-        if (!user.emailVerified) {
-          return null;
-        }
-
 
         return {
           id: user._id.toString(),

@@ -50,15 +50,15 @@ export default function RegisterPage() {
   if (success) {
     return (
       <div className="text-center w-full">
-        <h1 className="text-2xl font-black uppercase tracking-tighter text-foreground mb-2">Check your email</h1>
+        <h1 className="text-2xl font-black uppercase tracking-tighter text-foreground mb-2">Initialization Complete</h1>
         <p className="text-muted-foreground font-mono text-sm mb-6">
-          We&apos;ve sent a verification link to your email address. Please verify your email before logging in.
+          Your account has been successfully created. You may now authenticate.
         </p>
         <Link
           href="/login"
           className="inline-block px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-sm font-bold uppercase tracking-widest transition-all neon-glow"
         >
-          Return to Terminal
+          Authenticate
         </Link>
       </div>
     );

@@ -31,18 +31,7 @@ export default function LoginPage() {
         router.push('/dashboard');
         router.refresh();
       } else if (res.error === 'CredentialsSignin') {
-        // Could be wrong password OR unverified email.
-        // Check with our own API to distinguish.
-        const check = await fetch('/api/auth/check-verified', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        if (check.status === 403) {
-          setError('Please verify your email before signing in. Check your inbox for the verification link.');
-        } else {
-          setError('Invalid email or password.');
-        }
+        setError('Invalid email or password.');
       } else {
         setError(res.error);
       }

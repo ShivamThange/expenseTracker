@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db/connection';
 import { User, IUser } from '@/lib/models/User';
 import bcrypt from 'bcryptjs';
-import { sendVerificationEmail } from '@/lib/email/send';
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,19 +32,11 @@ export async function POST(req: NextRequest) {
       passwordHash,
     }) as IUser;
 
-    const rawToken = user.generateVerificationToken();
+    user.emailVerified = new Date();
     await user.save();
 
-    const emailResult = await sendVerificationEmail(user.email, user.name, rawToken);
-
-    if (!emailResult.success) {
-      // Clean up user if email fails, or let them request another validation email?
-      // For now, let's keep the user but log the error
-      console.error('Failed to send verification email during registration.');
-    }
-
     return NextResponse.json(
-      { message: 'User registered successfully. Please verify your email.' },
+      { message: 'User registered successfully. You can now log in.' },
       { status: 201 }
     );
   } catch (error: any) {
