@@ -63,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           dbUser = await User.create({
             email: user.email,
             name: user.name || profile?.name || 'Unknown User',
-            avatar: user.image,
+            avatar: user.image ?? undefined,
             authProvider: 'google',
             googleId: account.providerAccountId,
             emailVerified: new Date(),
