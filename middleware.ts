@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-// Force Node.js runtime instead of Edge to avoid module compatibility issues
-export const runtime = 'nodejs';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -65,7 +66,7 @@ export default function LoginPage() {
             {error}
           </div>
         )}
-        
+
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Email Address</label>
           <input
