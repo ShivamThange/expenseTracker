@@ -18,22 +18,5 @@ export const authConfig = {
       }
       return true;
     },
-
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-      }
-      // Handle user updates
-      if (trigger === 'update' && session?.user) {
-        token = { ...token, ...session.user };
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token.id) {
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
   },
 } satisfies NextAuthConfig;

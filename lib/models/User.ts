@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
+  authProvider: 'credentials' | 'google';
+  googleId?: string;
   name: string;
   emailVerified: Date | null;
   avatar?: string;
@@ -21,7 +23,9 @@ export interface IUser extends Document {
 const UserSchema: Schema<IUser> = new Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, select: false },
+    authProvider: { type: String, enum: ['credentials', 'google'], default: 'credentials' },
+    googleId: { type: String },
     name: { type: String, required: true, trim: true },
     emailVerified: { type: Date, default: null },
     avatar: { type: String },
@@ -38,6 +42,7 @@ const UserSchema: Schema<IUser> = new Schema(
 UserSchema.index({ createdAt: 1 });
 
 UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.passwordHash) return false;
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
