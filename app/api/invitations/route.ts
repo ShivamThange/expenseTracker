@@ -4,7 +4,7 @@ import { connectToDatabase } from '@/lib/db/connection';
 import { Invitation } from '@/lib/models/Invitation';
 import { Group } from '@/lib/models/Group';
 import { User } from '@/lib/models/User';
-import { sendVerificationEmail } from '@/lib/email/send';
+
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
