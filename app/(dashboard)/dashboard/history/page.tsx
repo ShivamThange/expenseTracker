@@ -28,6 +28,8 @@ type ExpenseDTO = {
   date: string;
 };
 
+const baseCategories = ['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'];
+
 export default function HistoryPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -35,6 +37,8 @@ export default function HistoryPage() {
   const [editPersonalOpen, setEditPersonalOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [personalForm, setPersonalForm] = useState({ description: '', amount: '', category: 'General' });
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
 
   const { data: expData, isLoading } = useQuery<{ expenses: ExpenseDTO[]; total: number }>({
     queryKey: ['expenses', 'all'],
@@ -72,6 +76,27 @@ export default function HistoryPage() {
   const resetPersonalEditor = () => {
     setPersonalForm({ description: '', amount: '', category: 'General' });
     setEditingExpenseId(null);
+  };
+  const categoryOptions = [...baseCategories, ...customCategories];
+
+  const handleAddCategory = () => {
+    const next = newCategoryInput.trim();
+    if (!next) {
+      toast.error('Category name is required');
+      return;
+    }
+
+    const existing = categoryOptions.find((category) => category.toLowerCase() === next.toLowerCase());
+    if (existing) {
+      setPersonalForm({ ...personalForm, category: existing });
+      setNewCategoryInput('');
+      return;
+    }
+
+    setCustomCategories((prev) => [...prev, next]);
+    setPersonalForm({ ...personalForm, category: next });
+    setNewCategoryInput('');
+    toast.success('Category added.');
   };
 
   const buildPersonalPayload = () => {
@@ -158,11 +183,22 @@ export default function HistoryPage() {
                 <Select value={personalForm.category} onValueChange={(v) => setPersonalForm({ ...personalForm, category: v ?? '' })}>
                   <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-[#111] border-border/50">
-                    {['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'].map((c) => (
+                    {categoryOptions.map((c) => (
                       <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add category"
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                  <Button type="button" variant="outline" className="rounded-sm uppercase tracking-widest text-[10px] font-bold" onClick={handleAddCategory}>
+                    Add
+                  </Button>
+                </div>
               </div>
               <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-2" onClick={handleCreatePersonal} disabled={addPersonalExpense.isPending}>
                 {addPersonalExpense.isPending ? 'Committing...' : 'Commit Record'}
@@ -190,11 +226,22 @@ export default function HistoryPage() {
                 <Select value={personalForm.category} onValueChange={(v) => setPersonalForm({ ...personalForm, category: v ?? '' })}>
                   <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-[#111] border-border/50">
-                    {['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'].map((c) => (
+                    {categoryOptions.map((c) => (
                       <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add category"
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                  <Button type="button" variant="outline" className="rounded-sm uppercase tracking-widest text-[10px] font-bold" onClick={handleAddCategory}>
+                    Add
+                  </Button>
+                </div>
               </div>
               <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-2" onClick={handleUpdatePersonal} disabled={updatePersonalExpense.isPending}>
                 {updatePersonalExpense.isPending ? 'Updating...' : 'Update Record'}

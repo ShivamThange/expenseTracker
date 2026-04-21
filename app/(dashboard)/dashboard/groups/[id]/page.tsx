@@ -36,6 +36,7 @@ type ScanBillResponse = {
   splits?: Split[];
 };
 
+const baseCategories = ['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'];
 const defaultExpenseForm = { description: '', amount: '', category: 'General', payerId: '' };
 
 export default function GroupDetailPage() {
@@ -49,6 +50,8 @@ export default function GroupDetailPage() {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [expForm, setExpForm] = useState(defaultExpenseForm);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
   
@@ -159,6 +162,27 @@ export default function GroupDetailPage() {
   const group = groupData?.group;
   const expenses = expData?.expenses ?? [];
   const isOwner = group?.ownerId === session?.user?.id;
+  const categoryOptions = [...baseCategories, ...customCategories];
+
+  const handleAddCategory = () => {
+    const next = newCategoryInput.trim();
+    if (!next) {
+      toast.error('Category name is required');
+      return;
+    }
+
+    const existing = categoryOptions.find((category) => category.toLowerCase() === next.toLowerCase());
+    if (existing) {
+      setExpForm({ ...expForm, category: existing });
+      setNewCategoryInput('');
+      return;
+    }
+
+    setCustomCategories((prev) => [...prev, next]);
+    setExpForm({ ...expForm, category: next });
+    setNewCategoryInput('');
+    toast.success('Category added.');
+  };
 
   const resetExpenseEditor = () => {
     setExpForm(defaultExpenseForm);
@@ -337,11 +361,22 @@ export default function GroupDetailPage() {
                   <Select value={expForm.category} onValueChange={(v) => setExpForm({ ...expForm, category: v ?? '' })}>
                     <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-[#111] border-border/50">
-                      {['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'].map((c) => (
+                      {categoryOptions.map((c) => (
                         <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="Add category"
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
+                    />
+                    <Button type="button" variant="outline" className="rounded-sm uppercase tracking-widest text-[10px] font-bold" onClick={handleAddCategory}>
+                      Add
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Source Node</Label>
@@ -417,11 +452,22 @@ export default function GroupDetailPage() {
                   <Select value={expForm.category} onValueChange={(v) => setExpForm({ ...expForm, category: v ?? '' })}>
                     <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-[#111] border-border/50">
-                      {['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'].map((c) => (
+                      {categoryOptions.map((c) => (
                         <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="Add category"
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
+                    />
+                    <Button type="button" variant="outline" className="rounded-sm uppercase tracking-widest text-[10px] font-bold" onClick={handleAddCategory}>
+                      Add
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Source Node</Label>
