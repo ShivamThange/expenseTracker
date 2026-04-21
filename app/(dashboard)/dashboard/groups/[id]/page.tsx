@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,11 +17,26 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
-import { Sparkles, Trash2, UserPlus, FileText, Scale } from 'lucide-react';
+import { Sparkles, Trash2, UserPlus, FileText, Scale, Pencil } from 'lucide-react';
 
 type Member = { id: string; name: string; email: string; avatar?: string };
-type Expense = { id: string; description: string; amount: number; category: string; payerId: string; date: string };
+type Split = { userId: string; amount: number };
+type Expense = { id: string; description: string; amount: number; category: string; payerId: string; date: string; splits: Split[] };
 type Group = { id: string; name: string; description?: string; currency: string; ownerId: string; members: Member[] };
+type ScanBillPayload = {
+  imageBase64?: string;
+  mimeType?: string;
+  message: string;
+  members?: Member[];
+};
+type ScanBillResponse = {
+  description?: string;
+  amount?: number;
+  category?: string;
+  splits?: Split[];
+};
+
+const defaultExpenseForm = { description: '', amount: '', category: 'General', payerId: '' };
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,9 +44,11 @@ export default function GroupDetailPage() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [editExpenseOpen, setEditExpenseOpen] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
-  const [expForm, setExpForm] = useState({ description: '', amount: '', category: 'General', payerId: '' });
+  const [expForm, setExpForm] = useState(defaultExpenseForm);
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
   
@@ -82,12 +99,28 @@ export default function GroupDetailPage() {
       toast.success('Transaction registered.');
       queryClient.invalidateQueries({ queryKey: ['expenses', id] });
       setAddExpenseOpen(false);
-      setExpForm({ description: '', amount: '', category: 'General', payerId: '' });
+      resetExpenseEditor();
+    },
+  });
+
+  const updateExpenseMutation = useMutation({
+    mutationFn: ({ expenseId, body }: { expenseId: string; body: object }) =>
+      fetch(`/api/expenses/${expenseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast.error(data.error); return; }
+      toast.success('Transaction updated.');
+      queryClient.invalidateQueries({ queryKey: ['expenses', id] });
+      setEditExpenseOpen(false);
+      resetExpenseEditor();
     },
   });
 
   const scanBillMutation = useMutation({
-    mutationFn: (body: any) =>
+    mutationFn: (body: ScanBillPayload) =>
       fetch('/api/ai/scan-bill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => {
         const text = await r.text();
         if (!r.ok) {
@@ -95,9 +128,9 @@ export default function GroupDetailPage() {
            try { const j = JSON.parse(text); if (j.error) errMessage = j.error; } catch {}
            throw new Error(errMessage);
         }
-        try { return JSON.parse(text); } catch { throw new Error(text || 'Failed to parse'); }
+        try { return JSON.parse(text) as ScanBillResponse; } catch { throw new Error(text || 'Failed to parse'); }
       }),
-    onSuccess: (data) => {
+      onSuccess: (data) => {
       setExpForm({
         ...expForm,
         description: data.description || 'Scanned Ledger',
@@ -107,7 +140,7 @@ export default function GroupDetailPage() {
       setSplitMode('custom');
       
       const newSplits: Record<string, string> = {};
-      data.splits?.forEach((s: any) => {
+      data.splits?.forEach((s) => {
         newSplits[s.userId] = String(s.amount);
       });
       setCustomSplits(newSplits);
@@ -115,7 +148,7 @@ export default function GroupDetailPage() {
       setScanMode(false);
       toast.success('AI Analysis complete. Verify parameter matrix.');
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const deleteGroupMutation = useMutation({
@@ -127,10 +160,50 @@ export default function GroupDetailPage() {
   const expenses = expData?.expenses ?? [];
   const isOwner = group?.ownerId === session?.user?.id;
 
-  const handleAddExpense = () => {
+  const resetExpenseEditor = () => {
+    setExpForm(defaultExpenseForm);
+    setSplitMode('equal');
+    setCustomSplits({});
+    setEditingExpenseId(null);
+    setScanMode(false);
+    setScanMessage('');
+    setScanImageStr(null);
+  };
+
+  const calculateEqualSplitMode = (amount: number, splits: Split[]) => {
+    if (splits.length === 0) return 'equal';
+
+    const roundedBase = Math.round((amount / splits.length) * 100) / 100;
+    const diff = Math.round((amount - roundedBase * splits.length) * 100) / 100;
+
+    return splits.every((split, index) => {
+      const expected = index === 0 ? Math.round((roundedBase + diff) * 100) / 100 : roundedBase;
+      return Math.abs(split.amount - expected) <= 0.01;
+    }) ? 'equal' : 'custom';
+  };
+
+  const openExpenseEditor = (expense: Expense) => {
+    setEditingExpenseId(expense.id);
+    setExpForm({
+      description: expense.description,
+      amount: String(expense.amount),
+      category: expense.category,
+      payerId: expense.payerId,
+    });
+    setSplitMode(calculateEqualSplitMode(expense.amount, expense.splits));
+    setCustomSplits(
+      expense.splits.reduce<Record<string, string>>((acc, split) => {
+        acc[split.userId] = String(split.amount);
+        return acc;
+      }, {})
+    );
+    setEditExpenseOpen(true);
+  };
+
+  const buildExpensePayload = () => {
     if (!group) return;
     const amount = parseFloat(expForm.amount);
-    if (!expForm.description || isNaN(amount) || amount <= 0) { toast.error('Invalid parameters detected'); return; }
+    if (!expForm.description || isNaN(amount) || amount <= 0) { toast.error('Invalid parameters detected'); return null; }
     
     let splits: { userId: string; amount: number }[] = [];
     if (splitMode === 'equal') {
@@ -151,16 +224,36 @@ export default function GroupDetailPage() {
       });
       if (hasError) {
         toast.error('Invalid custom split matrix');
-        return;
+        return null;
       }
       if (Math.abs(customTotal - amount) > 0.01) {
         toast.error(`Matrix sum (${customTotal.toFixed(2)}) must equal total (${amount.toFixed(2)})`);
-        return;
+        return null;
       }
     }
 
     const payerId = expForm.payerId || (session?.user?.id ?? '');
-    addExpenseMutation.mutate({ groupId: id, description: expForm.description, amount, category: expForm.category, payerId, splits });
+    if (!payerId) {
+      toast.error('Select a payer before saving');
+      return null;
+    }
+
+    return { description: expForm.description, amount, category: expForm.category, payerId, splits };
+  };
+
+  const handleAddExpense = () => {
+    const payload = buildExpensePayload();
+    if (!payload) return;
+    addExpenseMutation.mutate({ groupId: id, ...payload });
+  };
+
+  const handleUpdateExpense = () => {
+    if (!editingExpenseId) return;
+
+    const payload = buildExpensePayload();
+    if (!payload) return;
+
+    updateExpenseMutation.mutate({ expenseId: editingExpenseId, body: payload });
   };
 
   if (loadingGroup) return (
@@ -188,7 +281,10 @@ export default function GroupDetailPage() {
           <Button variant="outline" asChild className="rounded-sm border-border/50 hover:bg-white/5 font-bold uppercase tracking-widest text-xs h-10 px-6">
             <a href={`/dashboard/balances?groupId=${id}`}><Scale className="w-4 h-4 mr-2" /> Ledgers</a>
           </Button>
-          <Dialog open={addExpenseOpen} onOpenChange={setAddExpenseOpen}>
+          <Dialog open={addExpenseOpen} onOpenChange={(open) => {
+            setAddExpenseOpen(open);
+            if (!open) resetExpenseEditor();
+          }}>
             <DialogTrigger render={<Button className="neon-glow rounded-sm font-bold uppercase tracking-widest text-xs h-10 px-6">➕ Add Record</Button>} />
             <DialogContent className="sm:max-w-[425px] bg-[#0a0a0a] border border-border/50 rounded-sm">
               <DialogHeader><DialogTitle className="font-black uppercase tracking-widest">Insert Record</DialogTitle></DialogHeader>
@@ -301,6 +397,85 @@ export default function GroupDetailPage() {
               )}
             </DialogContent>
           </Dialog>
+          <Dialog open={editExpenseOpen} onOpenChange={(open) => {
+            setEditExpenseOpen(open);
+            if (!open) resetExpenseEditor();
+          }}>
+            <DialogContent className="sm:max-w-[425px] bg-[#0a0a0a] border border-border/50 rounded-sm">
+              <DialogHeader><DialogTitle className="font-black uppercase tracking-widest">Update Record</DialogTitle></DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriptor *</Label>
+                  <Input placeholder="e.g. Server hosting" value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Value ({group.currency}) *</Label>
+                  <Input type="number" min="0.01" step="0.01" placeholder="0.00" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} className="font-mono text-right bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class</Label>
+                  <Select value={expForm.category} onValueChange={(v) => setExpForm({ ...expForm, category: v ?? '' })}>
+                    <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[#111] border-border/50">
+                      {['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'].map((c) => (
+                        <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Source Node</Label>
+                  <Select value={(expForm.payerId || (session?.user?.id ?? ''))} onValueChange={(v) => setExpForm({ ...expForm, payerId: v ?? '' })}>
+                    <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue placeholder="Select node" /></SelectTrigger>
+                    <SelectContent className="bg-[#111] border-border/50">
+                      {group.members.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="font-mono text-xs focus:bg-white/5">
+                          {m.name}{m.id === session?.user?.id ? ' (Self)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 pt-4 border-t border-border/50 mt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Distribution</Label>
+                    <div className="flex bg-[#111] p-1 rounded-sm border border-border/50">
+                      <button type="button" onClick={() => setSplitMode('equal')} className={`px-4 py-1 text-xs uppercase tracking-widest font-bold rounded-sm ${splitMode === 'equal' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Symmetric</button>
+                      <button type="button" onClick={() => setSplitMode('custom')} className={`px-4 py-1 text-xs uppercase tracking-widest font-bold rounded-sm ${splitMode === 'custom' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Asymmetric</button>
+                    </div>
+                  </div>
+                  {splitMode === 'equal' ? (
+                    <p className="text-[10px] font-mono text-muted-foreground pt-2 uppercase tracking-widest text-center">Balanced across {group.members.length} nodes.</p>
+                  ) : (
+                    <div className="space-y-3 mt-4">
+                      {group.members.map(m => (
+                        <div key={m.id} className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-mono uppercase tracking-widest truncate flex-1">{m.name}</span>
+                          <div className="flex items-center gap-2 max-w-[120px]">
+                            <span className="text-[10px] font-mono text-muted-foreground">{group.currency}</span>
+                            <Input
+                              type="number" min="0" step="0.01" className="h-8 text-right font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
+                              value={customSplits[m.id] || ''}
+                              onChange={e => setCustomSplits({ ...customSplits, [m.id]: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest border-t border-border/50 pt-3 mt-2">
+                        <span className="text-muted-foreground">Matrix Sum:</span>
+                        <span className={Math.abs(Object.values(customSplits).reduce((sum, v) => sum + (parseFloat(v) || 0), 0) - parseFloat(expForm.amount || '0')) > 0.01 ? 'text-destructive font-bold' : 'text-primary font-bold'}>
+                          {group.currency} {Object.values(customSplits).reduce((sum, v) => sum + (parseFloat(v) || 0), 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-6" disabled={updateExpenseMutation.isPending} onClick={handleUpdateExpense}>
+                  {updateExpenseMutation.isPending ? 'Updating...' : 'Update Record'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -345,6 +520,14 @@ export default function GroupDetailPage() {
                           <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-1">
                             {new Date(exp.date).toISOString().split('T')[0]}
                           </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 h-7 px-2 text-[10px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground"
+                            onClick={() => openExpenseEditor(exp)}
+                          >
+                            <Pencil className="w-3 h-3 mr-1" /> Edit
+                          </Button>
                         </div>
                       </div>
                     </div>
