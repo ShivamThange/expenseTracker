@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { History, Plus, ArrowUpRight } from 'lucide-react';
+import { History, Plus, ArrowUpRight, Pencil } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type SplitDTO = { userId: string; amount: number };
@@ -32,6 +32,8 @@ export default function HistoryPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [addPersonalOpen, setAddPersonalOpen] = useState(false);
+  const [editPersonalOpen, setEditPersonalOpen] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [personalForm, setPersonalForm] = useState({ description: '', amount: '', category: 'General' });
 
   const { data: expData, isLoading } = useQuery<{ expenses: ExpenseDTO[]; total: number }>({
@@ -51,24 +53,79 @@ export default function HistoryPage() {
     },
   });
 
-  const handleCreatePersonal = () => {
+  const updatePersonalExpense = useMutation({
+    mutationFn: ({ expenseId, body }: { expenseId: string; body: object }) =>
+      fetch(`/api/expenses/${expenseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast.error(data.error); return; }
+      toast.success('Private record updated.');
+      queryClient.invalidateQueries({ queryKey: ['expenses', 'all'] });
+      setEditPersonalOpen(false);
+      resetPersonalEditor();
+    },
+  });
+
+  const resetPersonalEditor = () => {
+    setPersonalForm({ description: '', amount: '', category: 'General' });
+    setEditingExpenseId(null);
+  };
+
+  const buildPersonalPayload = () => {
     const amount = parseFloat(personalForm.amount);
     if (!personalForm.description || isNaN(amount) || amount <= 0) {
       toast.error('Invalid parameters detected');
-      return;
+      return null;
     }
-    const userId = session?.user?.id;
-    if (!userId) return;
 
-    addPersonalExpense.mutate({
-      groupId: '', 
+    const userId = session?.user?.id;
+    if (!userId) {
+      toast.error('Session not found');
+      return null;
+    }
+
+    return {
       description: personalForm.description,
       amount,
       category: personalForm.category,
       payerId: userId,
       splits: [{ userId, amount }],
+    };
+  };
+
+  const handleCreatePersonal = () => {
+    const payload = buildPersonalPayload();
+    if (!payload) return;
+
+    addPersonalExpense.mutate({
+      groupId: '', 
+      ...payload,
       date: new Date().toISOString(),
     });
+  };
+
+  const handleUpdatePersonal = () => {
+    if (!editingExpenseId) return;
+    const payload = buildPersonalPayload();
+    if (!payload) return;
+
+    updatePersonalExpense.mutate({
+      expenseId: editingExpenseId,
+      body: payload,
+    });
+  };
+
+  const openEditPersonal = (expense: ExpenseDTO) => {
+    setEditingExpenseId(expense.id);
+    setPersonalForm({
+      description: expense.description,
+      amount: String(expense.amount),
+      category: expense.category,
+    });
+    setEditPersonalOpen(true);
   };
 
   const expenses = expData?.expenses ?? [];
@@ -80,7 +137,10 @@ export default function HistoryPage() {
           <h1 className="text-3xl font-black tracking-tighter uppercase">Global Log</h1>
           <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Unified Transaction History</p>
         </div>
-        <Dialog open={addPersonalOpen} onOpenChange={setAddPersonalOpen}>
+        <Dialog open={addPersonalOpen} onOpenChange={(open) => {
+          setAddPersonalOpen(open);
+          if (!open) resetPersonalEditor();
+        }}>
           <DialogTrigger render={<Button className="neon-glow rounded-sm font-bold uppercase tracking-widest text-xs h-10 px-6"><Plus className="w-4 h-4 mr-2" /> Private TX</Button>} />
           <DialogContent className="sm:max-w-md bg-[#0a0a0a] border border-border/50 rounded-sm">
             <DialogHeader><DialogTitle className="font-black uppercase tracking-widest">Inject Private Record</DialogTitle></DialogHeader>
@@ -110,6 +170,38 @@ export default function HistoryPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <Dialog open={editPersonalOpen} onOpenChange={(open) => {
+          setEditPersonalOpen(open);
+          if (!open) resetPersonalEditor();
+        }}>
+          <DialogContent className="sm:max-w-md bg-[#0a0a0a] border border-border/50 rounded-sm">
+            <DialogHeader><DialogTitle className="font-black uppercase tracking-widest">Update Private Record</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriptor *</Label>
+                <Input value={personalForm.description} onChange={(e) => setPersonalForm({ ...personalForm, description: e.target.value })} className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Value *</Label>
+                <Input type="number" min="0.01" step="0.01" value={personalForm.amount} onChange={(e) => setPersonalForm({ ...personalForm, amount: e.target.value })} className="font-mono text-right bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class</Label>
+                <Select value={personalForm.category} onValueChange={(v) => setPersonalForm({ ...personalForm, category: v ?? '' })}>
+                  <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-[#111] border-border/50">
+                    {['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'].map((c) => (
+                      <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-2" onClick={handleUpdatePersonal} disabled={updatePersonalExpense.isPending}>
+                {updatePersonalExpense.isPending ? 'Updating...' : 'Update Record'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="space-y-6">
@@ -128,7 +220,9 @@ export default function HistoryPage() {
         ) : (
           <Card className="card-glass rounded-sm overflow-hidden">
             <CardContent className="p-0">
-              {expenses.map((exp, i) => (
+              {expenses.map((exp, i) => {
+                const canEditPersonal = exp.groupName === 'Personal' && exp.payerId === session?.user?.id;
+                return (
                 <div key={exp.id} className="group hover:bg-white/5 transition-colors">
                   {i > 0 && <Separator className="bg-border/40" />}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-4">
@@ -158,10 +252,20 @@ export default function HistoryPage() {
                        <div className="text-[10px] font-mono uppercase tracking-widest text-primary/70 pt-1">
                          {exp.payerId === session?.user?.id ? 'SRC: Self' : 'SRC: External'}
                        </div>
+                       {canEditPersonal && (
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           className="mt-2 h-7 px-2 text-[10px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground"
+                           onClick={() => openEditPersonal(exp)}
+                         >
+                           <Pencil className="w-3 h-3 mr-1" /> Edit
+                         </Button>
+                       )}
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </CardContent>
           </Card>
         )}
