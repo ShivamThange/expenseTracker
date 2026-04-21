@@ -127,6 +127,11 @@ export default function GroupDetailPage() {
     mutationFn: (body: ScanBillPayload) =>
       fetch('/api/ai/scan-bill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => {
         const text = await r.text();
+        console.log('[AI Scan] Raw API response:', {
+          status: r.status,
+          ok: r.ok,
+          text,
+        });
         if (!r.ok) {
            let errMessage = text;
            try { const j = JSON.parse(text); if (j.error) errMessage = j.error; } catch {}
