@@ -40,6 +40,23 @@ function extractJsonText(rawText: string): string {
   return trimmed;
 }
 
+function safeJsonParse(rawJsonText: string): unknown {
+  const trimmed = rawJsonText.trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // Try common cleanup patterns from LLM output
+    const normalizedQuotes = trimmed
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'");
+    const withoutTrailingCommas = normalizedQuotes
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']');
+    return JSON.parse(withoutTrailingCommas);
+  }
+}
+
 function parseNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -56,12 +73,37 @@ function normalizeName(name: string): string {
 
 function parseAndNormalize(rawText: string, fallbackMembers: MemberRef[]): ScanBillResponse {
   const jsonText = extractJsonText(rawText);
-  const parsed = JSON.parse(jsonText) as {
+  const parsedUnknown = safeJsonParse(jsonText);
+
+  const unwrapObject = (value: unknown): Record<string, unknown> => {
+    if (typeof value === 'string') {
+      const nested = safeJsonParse(extractJsonText(value));
+      return unwrapObject(nested);
+    }
+    if (Array.isArray(value)) {
+      const firstObject = value.find((item) => item && typeof item === 'object' && !Array.isArray(item));
+      if (!firstObject) throw new Error('AI response array has no object payload');
+      return firstObject as Record<string, unknown>;
+    }
+    if (!value || typeof value !== 'object') {
+      throw new Error('AI response is not a valid JSON object');
+    }
+    return value as Record<string, unknown>;
+  };
+
+  const parsed = unwrapObject(parsedUnknown) as {
     description?: unknown;
     amount?: unknown;
+    total?: unknown;
+    totalAmount?: unknown;
+    billTotal?: unknown;
     category?: unknown;
     memberShares?: unknown;
     splits?: unknown;
+    shares?: unknown;
+    allocations?: unknown;
+    split?: unknown;
+    shareByMember?: unknown;
   };
 
   const description = typeof parsed.description === 'string' && parsed.description.trim()
@@ -75,16 +117,32 @@ function parseAndNormalize(rawText: string, fallbackMembers: MemberRef[]): ScanB
     ? parsed.memberShares
     : Array.isArray(parsed.splits)
       ? parsed.splits
-      : [];
+      : Array.isArray(parsed.shares)
+        ? parsed.shares
+        : Array.isArray(parsed.allocations)
+          ? parsed.allocations
+          : Array.isArray(parsed.split)
+            ? parsed.split
+            : [];
 
   const parsedShares = rawShares
     .map((share): { userId: string; userName: string; amount: number } | null => {
       if (!share || typeof share !== 'object') return null;
 
-      const rawUserId = (share as { userId?: unknown }).userId;
-      const rawUserName = (share as { userName?: unknown; name?: unknown }).userName
-        ?? (share as { userName?: unknown; name?: unknown }).name;
-      const rawAmount = (share as { amount?: unknown }).amount;
+      const rawUserId =
+        (share as { userId?: unknown; memberId?: unknown; id?: unknown; personId?: unknown }).userId
+        ?? (share as { userId?: unknown; memberId?: unknown; id?: unknown; personId?: unknown }).memberId
+        ?? (share as { userId?: unknown; memberId?: unknown; id?: unknown; personId?: unknown }).id
+        ?? (share as { userId?: unknown; memberId?: unknown; id?: unknown; personId?: unknown }).personId;
+      const rawUserName =
+        (share as { userName?: unknown; memberName?: unknown; name?: unknown; person?: unknown }).userName
+        ?? (share as { userName?: unknown; memberName?: unknown; name?: unknown; person?: unknown }).memberName
+        ?? (share as { userName?: unknown; memberName?: unknown; name?: unknown; person?: unknown }).name
+        ?? (share as { userName?: unknown; memberName?: unknown; name?: unknown; person?: unknown }).person;
+      const rawAmount =
+        (share as { amount?: unknown; share?: unknown; value?: unknown }).amount
+        ?? (share as { amount?: unknown; share?: unknown; value?: unknown }).share
+        ?? (share as { amount?: unknown; share?: unknown; value?: unknown }).value;
 
       const amount = parseNumber(rawAmount);
       if (amount === null || amount < 0) return null;
@@ -106,7 +164,25 @@ function parseAndNormalize(rawText: string, fallbackMembers: MemberRef[]): ScanB
     })
     .filter((share): share is { userId: string; userName: string; amount: number } => Boolean(share));
 
-  const amountFromField = parseNumber(parsed.amount);
+  // Accept object map format: { "Alice": 10.5, "Bob": 8.2 }
+  if (parsedShares.length === 0 && parsed.shareByMember && typeof parsed.shareByMember === 'object' && !Array.isArray(parsed.shareByMember)) {
+    for (const [memberName, memberAmount] of Object.entries(parsed.shareByMember as Record<string, unknown>)) {
+      const member = memberByName.get(normalizeName(memberName));
+      const amount = parseNumber(memberAmount);
+      if (!member || amount === null || amount < 0) continue;
+      parsedShares.push({
+        userId: member.id,
+        userName: member.name,
+        amount: Math.round(amount * 100) / 100,
+      });
+    }
+  }
+
+  const amountFromField =
+    parseNumber(parsed.amount)
+    ?? parseNumber(parsed.totalAmount)
+    ?? parseNumber(parsed.total)
+    ?? parseNumber(parsed.billTotal);
   const amountFromShares = Math.round(parsedShares.reduce((sum, share) => sum + share.amount, 0) * 100) / 100;
   const amount = amountFromField ?? amountFromShares;
 
@@ -216,9 +292,17 @@ Message from user: ${message || 'No additional instructions provided. Split even
     try {
       const parsed = parseAndNormalize(result.text, memberRefs);
       return NextResponse.json(parsed);
-    } catch {
-      console.error('[AI Bill Scan] JSON Parse Error:', result.text);
-      return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
+    } catch (parseError: unknown) {
+      const message = parseError instanceof Error ? parseError.message : 'Unknown parse error';
+      console.error('[AI Bill Scan] JSON Parse Error:', { message, aiText: result.text });
+      return NextResponse.json(
+        {
+          error: 'Failed to parse AI response',
+          details: message,
+          aiRawResponse: result.text,
+        },
+        { status: 500 }
+      );
     }
   } catch (error: unknown) {
     console.error('[POST /api/ai/scan-bill]', error);
