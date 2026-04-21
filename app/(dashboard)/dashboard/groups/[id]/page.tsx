@@ -281,22 +281,22 @@ export default function GroupDetailPage() {
   };
 
   if (loadingGroup) return (
-    <div className="p-8 max-w-5xl mx-auto space-y-4">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-4">
       <Skeleton className="h-10 w-48 bg-muted" />
       <Skeleton className="h-32 bg-muted" />
       <Skeleton className="h-64 bg-muted" />
     </div>
   );
 
-  if (!group) return <div className="p-8 text-center font-mono text-muted-foreground uppercase tracking-widest">Network 404: Not Found.</div>;
+  if (!group) return <div className="p-4 sm:p-6 lg:p-8 text-center font-mono text-muted-foreground uppercase tracking-widest">Network 404: Not Found.</div>;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-black tracking-tighter uppercase">{group.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">{group.name}</h1>
             <Badge variant="outline" className="font-mono text-[10px] border-secondary text-secondary bg-secondary/5 rounded-sm">{group.currency}</Badge>
           </div>
           {group.description && <p className="text-muted-foreground font-mono text-xs mt-2 uppercase tracking-widest">{group.description}</p>}
@@ -549,7 +549,7 @@ export default function GroupDetailPage() {
                   return (
                     <div key={exp.id} className="group transition-colors hover:bg-white/5">
                       {i > 0 && <Separator className="bg-border/40" />}
-                      <div className="flex items-center justify-between p-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-sm bg-[#111] border border-border/50 flex items-center justify-center group-hover:border-primary/50 transition-colors">
                             <FileText className="w-4 h-4 text-primary" />
@@ -561,7 +561,7 @@ export default function GroupDetailPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left pl-14 sm:pl-0 sm:text-right">
                           <p className="font-mono font-bold text-foreground drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]">{group.currency} {exp.amount.toFixed(2)}</p>
                           <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-1">
                             {new Date(exp.date).toISOString().split('T')[0]}

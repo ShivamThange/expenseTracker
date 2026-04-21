@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,10 +45,7 @@ export function SpendingAnalytics() {
 
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetInput, setBudgetInput] = useState('');
-
-  useEffect(() => {
-    if (budget > 0) setBudgetInput(String(budget));
-  }, [budget]);
+  const effectiveBudgetInput = budgetInput === '' && budget > 0 ? String(budget) : budgetInput;
 
   const setBudgetMutation = useMutation({
     mutationFn: (val: number) =>
@@ -68,23 +65,21 @@ export function SpendingAnalytics() {
 
   // Compute spending metrics
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const monthStartMs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthEndMs = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+  const monthEnd = new Date(monthEndMs);
   const daysInMonth = monthEnd.getDate();
   const dayOfMonth = now.getDate();
 
-  const myExpensesThisMonth = useMemo(() => {
+  const myExpensesThisMonth = (() => {
     if (!expData?.expenses || !userId) return [];
     return expData.expenses.filter(e => {
-      const d = new Date(e.date);
-      return e.payerId === userId && d >= monthStart && d <= monthEnd;
+      const d = new Date(e.date).getTime();
+      return e.payerId === userId && d >= monthStartMs && d <= monthEndMs;
     });
-  }, [expData, userId, monthStart.getTime(), monthEnd.getTime()]);
+  })();
 
-  const totalSpent = useMemo(() =>
-    myExpensesThisMonth.reduce((sum, e) => sum + e.amount, 0),
-    [myExpensesThisMonth]
-  );
+  const totalSpent = myExpensesThisMonth.reduce((sum, e) => sum + e.amount, 0);
 
   // Category breakdown
   const categoryBreakdown: CategorySpend[] = useMemo(() => {
@@ -121,7 +116,7 @@ export function SpendingAnalytics() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
           Spending Analytics — {monthLabel}
         </h2>
@@ -138,7 +133,7 @@ export function SpendingAnalytics() {
                 <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Set your spending limit for this month</p>
                 <Input
                   type="number" min="0" step="100" placeholder="e.g. 5000"
-                  value={budgetInput} onChange={e => setBudgetInput(e.target.value)}
+                  value={effectiveBudgetInput} onChange={e => setBudgetInput(e.target.value)}
                   className="font-mono text-right bg-[#111] rounded-sm text-lg h-12 focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -146,7 +141,7 @@ export function SpendingAnalytics() {
                 className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest"
                 disabled={setBudgetMutation.isPending}
                 onClick={() => {
-                  const val = parseFloat(budgetInput);
+                  const val = parseFloat(effectiveBudgetInput);
                   if (isNaN(val) || val < 0) { toast.error('Enter a valid amount'); return; }
                   setBudgetMutation.mutate(val);
                 }}
@@ -158,29 +153,29 @@ export function SpendingAnalytics() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main spending card with budget progress */}
         <Card className="card-glass rounded-sm lg:col-span-2 overflow-hidden">
           <CardContent className="p-6 space-y-6">
             {/* Top metrics row */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Spent</p>
-                <p className={`text-2xl font-mono font-bold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}>
+                <p className={`text-xl sm:text-2xl font-mono font-bold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}>
                   {totalSpent.toFixed(2)}
                 </p>
               </div>
               {budget > 0 && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Remaining</p>
-                  <p className={`text-2xl font-mono font-bold ${isOverBudget ? 'text-destructive' : 'text-primary'}`}>
+                  <p className={`text-xl sm:text-2xl font-mono font-bold ${isOverBudget ? 'text-destructive' : 'text-primary'}`}>
                     {isOverBudget ? `-${(totalSpent - budget).toFixed(2)}` : remaining.toFixed(2)}
                   </p>
                 </div>
               )}
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Daily Avg</p>
-                <p className="text-2xl font-mono font-bold text-foreground">
+                <p className="text-xl sm:text-2xl font-mono font-bold text-foreground">
                   {dailyAvgSpend.toFixed(2)}
                 </p>
               </div>

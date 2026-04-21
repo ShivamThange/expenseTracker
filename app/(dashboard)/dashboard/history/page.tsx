@@ -156,10 +156,10 @@ export default function HistoryPage() {
   const expenses = expData?.expenses ?? [];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-black tracking-tighter uppercase">Global Log</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">Global Log</h1>
           <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Unified Transaction History</p>
         </div>
         <Dialog open={addPersonalOpen} onOpenChange={(open) => {

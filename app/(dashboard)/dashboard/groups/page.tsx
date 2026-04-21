@@ -55,10 +55,10 @@ export default function GroupsPage() {
   const groups = data?.groups ?? [];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter">Networks</h1>
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter">Networks</h1>
           <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Manage your shared ledgers</p>
         </div>
 

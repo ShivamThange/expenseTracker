@@ -21,9 +21,9 @@ export default function ExpensesPage() {
   const groups = groupsData?.groups ?? [];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-black tracking-tighter uppercase">Global Ledger</h1>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">Global Ledger</h1>
         <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Aggregated network transactions</p>
       </div>
 
@@ -63,7 +63,7 @@ function GroupExpenses({ group }: { group: Group }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center gap-2 justify-between mb-4">
         <div className="flex items-center gap-3">
           <Link href={`/dashboard/groups/${group.id}`} className="font-bold uppercase tracking-wider text-foreground hover:text-primary transition-colors flex items-center group">
             {group.name}
@@ -84,7 +84,7 @@ function GroupExpenses({ group }: { group: Group }) {
             {expenses.map((exp, i) => (
               <div key={exp.id} className="group hover:bg-white/5 transition-colors">
                 {i > 0 && <Separator className="bg-border/40" />}
-                <div className="flex items-center justify-between p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-sm bg-[#111] border border-border/50 flex items-center justify-center group-hover:border-primary/50 transition-colors">
                       <FileText className="w-4 h-4 text-primary" />
@@ -96,7 +96,7 @@ function GroupExpenses({ group }: { group: Group }) {
                       </p>
                     </div>
                   </div>
-                  <p className="font-mono font-bold text-foreground drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]">
+                  <p className="font-mono font-bold text-foreground drop-shadow-[0_0_5px_rgba(255,255,255,0.2)] pl-14 sm:pl-0 text-left sm:text-right">
                     {group.currency} {exp.amount.toFixed(2)}
                   </p>
                 </div>

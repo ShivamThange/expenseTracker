@@ -31,6 +31,7 @@ type BalancesResponse = {
   }[];
 };
 type Group = { id: string; name: string; currency: string; members: { id: string; name: string }[] };
+type MutationResponse = { error?: string };
 
 function BalancesContent() {
   const searchParams = useSearchParams();
@@ -66,7 +67,7 @@ function BalancesContent() {
   const markPaidMutation = useMutation({
     mutationFn: (body: { groupId: string; toUserId: string; amount: number }) =>
       fetch('/api/settlements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json()),
-    onSuccess: (data: any) => {
+    onSuccess: (data: MutationResponse) => {
       if (data.error) { toast.error(data.error); return; }
       toast.success('Transfer initiated. Awaiting verification.');
       queryClient.invalidateQueries({ queryKey: ['balances', selectedGroup?.id] });
@@ -76,7 +77,7 @@ function BalancesContent() {
   const confirmMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/settlements/${id}/confirm`, { method: 'POST' }).then((r) => r.json()),
-    onSuccess: (data: any) => {
+    onSuccess: (data: MutationResponse) => {
       if (data.error) { toast.error(data.error); return; }
       toast.success('Funds Verified.');
       queryClient.invalidateQueries({ queryKey: ['balances', selectedGroup?.id] });
@@ -86,9 +87,9 @@ function BalancesContent() {
   const loading = loadingGroups || loadingBalances;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-black tracking-tighter uppercase">Ledger Balances</h1>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">Ledger Balances</h1>
         <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Network settlement matrix</p>
       </div>
 
@@ -144,7 +145,7 @@ function BalancesContent() {
                   return (
                     <div key={entry.userId} className="hover:bg-white/5 transition-colors">
                       {i > 0 && <Separator className="bg-border/40" />}
-                      <div className="flex items-center justify-between p-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-9 w-9 rounded-sm ring-1 ring-border border border-[#111]">
                             <AvatarFallback className="text-[10px] bg-[#111] font-bold text-foreground rounded-sm flex items-center justify-center">
@@ -156,7 +157,7 @@ function BalancesContent() {
                             {entry.userId === session?.user?.id ? ' (Self)' : ''}
                           </span>
                         </div>
-                        <span className={`font-mono font-bold tracking-widest text-sm drop-shadow-[0_0_5px_rgba(255,255,255,0.2)] ${isPositive ? 'text-primary' : 'text-destructive'}`}>
+                        <span className={`pl-14 sm:pl-0 font-mono font-bold tracking-widest text-sm drop-shadow-[0_0_5px_rgba(255,255,255,0.2)] ${isPositive ? 'text-primary' : 'text-destructive'}`}>
                           {isPositive ? '+' : ''}{balancesData!.currency} {Math.abs(entry.balance).toFixed(2)}
                         </span>
                       </div>
@@ -218,8 +219,8 @@ function BalancesContent() {
               <CardContent className="p-5">
                 <div className="space-y-4">
                   {balancesData.recordedSettlements.filter(s => s.status === 'pending').map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-4 rounded-sm border border-yellow-500/20 bg-background">
-                      <div className="text-xs font-mono uppercase tracking-widest leading-relaxed">
+                    <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-sm border border-yellow-500/20 bg-background">
+                      <div className="text-xs font-mono uppercase tracking-widest leading-relaxed break-words">
                         <span className="font-bold whitespace-nowrap">{getName(s.fromUserId)}</span>
                         <span className="text-muted-foreground mx-2">TRANSFERRED</span>
                         <span className="font-bold text-yellow-500 whitespace-nowrap">{balancesData.currency} {s.amount.toFixed(2)}</span>
@@ -227,11 +228,11 @@ function BalancesContent() {
                         <span className="font-bold whitespace-nowrap">{getName(s.toUserId)}</span>
                       </div>
                       {s.toUserId === session?.user?.id ? (
-                        <Button size="sm" variant="default" className="h-8 text-[10px] uppercase font-bold tracking-widest bg-yellow-500 hover:bg-yellow-400 text-black rounded-sm ml-4 shadow-[0_0_10px_rgba(234,179,8,0.3)]" onClick={() => confirmMutation.mutate(s.id)} disabled={confirmMutation.isPending}>
+                        <Button size="sm" variant="default" className="h-8 text-[10px] uppercase font-bold tracking-widest bg-yellow-500 hover:bg-yellow-400 text-black rounded-sm sm:ml-4 shadow-[0_0_10px_rgba(234,179,8,0.3)]" onClick={() => confirmMutation.mutate(s.id)} disabled={confirmMutation.isPending}>
                           Verify Auth
                         </Button>
                       ) : (
-                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest animate-pulse ml-4">Authenticating...</span>
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest animate-pulse sm:ml-4">Authenticating...</span>
                       )}
                     </div>
                   ))}
@@ -247,7 +248,7 @@ function BalancesContent() {
 
 export default function BalancesPage() {
   return (
-    <Suspense fallback={<div className="p-8"><Skeleton className="h-96 bg-muted rounded-sm" /></div>}>
+    <Suspense fallback={<div className="p-4 sm:p-6 lg:p-8"><Skeleton className="h-96 bg-muted rounded-sm" /></div>}>
       <BalancesContent />
     </Suspense>
   );
