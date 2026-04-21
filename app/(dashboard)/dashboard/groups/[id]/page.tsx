@@ -33,6 +33,7 @@ type ScanBillResponse = {
   description?: string;
   amount?: number;
   category?: string;
+  memberShares?: Array<{ userId: string; userName?: string; amount: number }>;
   splits?: Split[];
 };
 
@@ -143,7 +144,8 @@ export default function GroupDetailPage() {
       setSplitMode('custom');
       
       const newSplits: Record<string, string> = {};
-      data.splits?.forEach((s) => {
+      const shares = data.memberShares?.length ? data.memberShares : data.splits;
+      shares?.forEach((s) => {
         newSplits[s.userId] = String(s.amount);
       });
       setCustomSplits(newSplits);
