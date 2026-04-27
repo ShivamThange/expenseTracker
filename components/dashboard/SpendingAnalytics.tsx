@@ -165,12 +165,17 @@ export function SpendingAnalytics() {
                   </p>
                 </div>
               )}
-              <div>
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Daily avg</p>
-                <p className="mono-data text-3xl font-bold text-foreground">
-                  {dailyAvgSpend.toFixed(2)}
-                </p>
-              </div>
+              {budget > 0 && (
+                <div>
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Safe to spend today</p>
+                  <p className="mono-data text-3xl font-bold text-foreground">
+                    {(daysInMonth > dayOfMonth ? remaining / (daysInMonth - dayOfMonth + 1) : 0).toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1 font-light">
+                    {dailyAvgSpend > (daysInMonth > dayOfMonth ? remaining / (daysInMonth - dayOfMonth + 1) : 0) ? '📉 Behind pace' : '📈 On track'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Budget progress */}

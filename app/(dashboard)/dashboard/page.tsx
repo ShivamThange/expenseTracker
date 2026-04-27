@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { SpendingAnalytics } from '@/components/dashboard/SpendingAnalytics';
-import { Share2, Contact, Coins, Plus, ArrowRight, ArrowLeftRight } from 'lucide-react';
+import { SettlementStrip } from '@/components/dashboard/SettlementStrip';
+import { NeedsVsWants } from '@/components/dashboard/NeedsVsWants';
+import { SubscriptionRadar } from '@/components/dashboard/SubscriptionRadar';
+import { StreakAndWins } from '@/components/dashboard/StreakAndWins';
+import { Plus, ArrowRight, ArrowLeftRight, Contact } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Overview' };
 
@@ -38,34 +42,20 @@ export default async function DashboardPage() {
         </Button>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Groups', value: groups.length, icon: Share2, color: '#F07040', bg: 'rgba(240,112,64,0.1)', border: 'rgba(240,112,64,0.2)' },
-          { label: 'Members', value: [...new Set(groups.flatMap((g) => g.memberIds))].length, icon: Contact, color: '#4B8BF4', bg: 'rgba(75,139,244,0.1)', border: 'rgba(75,139,244,0.2)' },
-          { label: 'Currencies', value: [...new Set(groups.map((g) => g.currency))].length, icon: Coins, color: '#52C8A8', bg: 'rgba(82,200,168,0.1)', border: 'rgba(82,200,168,0.2)' },
-        ].map((stat) => (
-          <Card key={stat.label} className="card-glass border-border/50 card-hover rounded-xl overflow-hidden">
-            <CardContent className="pt-5 pb-5">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{stat.label}</p>
-                  <p className="mono-data text-4xl font-bold" style={{ color: stat.color, textShadow: `0 0 20px ${stat.color}40` }}>
-                    {stat.value}
-                  </p>
-                </div>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: stat.bg, border: `1px solid ${stat.border}` }}>
-                  <stat.icon className="w-4.5 h-4.5" style={{ color: stat.color, width: 18, height: 18 }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Settlement Strip */}
+      <SettlementStrip />
 
       {/* Spending Analytics */}
       <SpendingAnalytics />
+
+      {/* Needs vs Wants */}
+      <NeedsVsWants />
+
+      {/* Subscription Radar and Streak & Wins */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SubscriptionRadar />
+        <StreakAndWins />
+      </div>
 
       {/* Groups section */}
       <div>

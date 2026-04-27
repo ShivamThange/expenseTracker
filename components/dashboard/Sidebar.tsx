@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { LayoutGrid, Share2, Banknote, ScrollText, ArrowLeftRight, Settings, LogOut, ChevronUp } from 'lucide-react';
+import { LayoutGrid, Share2, Banknote, ScrollText, ArrowLeftRight, Settings, LogOut, ChevronUp, Download } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
@@ -29,13 +31,48 @@ export function Sidebar() {
   const user = session?.user;
   const initials = user?.name?.split(' ').map((n) => n[0]).join('').toUpperCase() ?? '?';
 
+  const deferredPrompt = useRef<any>(null);
+  const [showInstall, setShowInstall] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      deferredPrompt.current = e;
+      setShowInstall(true);
+    };
+
+    const handleAppInstalled = () => {
+      setShowInstall(false);
+      deferredPrompt.current = null;
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt.current) {
+      deferredPrompt.current.prompt();
+      const { outcome } = await deferredPrompt.current.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstall(false);
+      }
+      deferredPrompt.current = null;
+    }
+  };
+
   return (
     <>
       {/* ── Desktop sidebar ─────────────────────────────── */}
-      <aside className="hidden lg:flex lg:flex-col w-60 xl:w-64 min-h-screen border-r border-border/40 bg-background shrink-0">
+      <aside className="hidden lg:flex lg:flex-col w-60 xl:w-64 h-screen overflow-hidden border-r border-border/40 bg-background shrink-0 fixed left-0 top-0">
 
         {/* Brand */}
-        <div className="h-16 flex items-center px-5 border-b border-border/40">
+        <div className="h-16 flex items-center px-5 border-b border-border/40 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
             <div className="w-7 h-7 rounded-md shrink-0 bg-primary flex items-center justify-center animate-glow-pulse">
               <span className="text-primary-foreground font-black text-[11px] tracking-tight">ET</span>
@@ -46,8 +83,8 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 pt-5 space-y-0.5">
+        {/* Nav - scrollable */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 pt-5 space-y-0.5">
           <p className="text-[9px] font-bold tracking-widest text-muted-foreground/60 uppercase px-2 mb-3">Navigation</p>
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -71,11 +108,19 @@ export function Sidebar() {
               </Link>
             );
           })}
+          {showInstall && (
+            <Button
+              onClick={handleInstall}
+              className="w-full neon-glow mt-4 rounded-lg font-bold text-xs h-9 gap-2"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Install App
+            </Button>
+          )}
         </nav>
 
-        {/* User footer */}
-        <div className="p-3 space-y-3 pb-4">
-          <div className="divider-gradient" />
+        {/* User footer - fixed at bottom */}
+        <div className="p-3 space-y-3 pb-4 border-t border-border/40 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger render={
               <button className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-white/4 transition-colors text-left border border-transparent hover:border-border/40 group">
@@ -106,6 +151,37 @@ export function Sidebar() {
           </DropdownMenu>
         </div>
       </aside>
+
+      {/* ── Mobile user menu ─────────────────────────────── */}
+      <div className="lg:hidden fixed top-0 right-0 z-50 p-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger render={
+            <button className="flex items-center justify-center h-10 w-10 rounded-lg hover:bg-white/4 transition-colors border border-transparent hover:border-border/40">
+              <Avatar className="h-8 w-8 rounded-lg ring-1 ring-primary/30 hover:ring-primary/60 transition-all">
+                <AvatarImage src={user?.image ?? ''} />
+                <AvatarFallback className="text-[11px] bg-primary/15 text-primary font-bold rounded-lg inline-flex items-center justify-center">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          } />
+          <DropdownMenuContent align="end" className="w-48 bg-card border-border/50 rounded-xl shadow-xl">
+            <div className="px-3 py-2 text-[10px] text-muted-foreground border-b border-border/40">
+              <p className="text-xs font-semibold text-foreground truncate">{user?.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate mt-0.5">{user?.email}</p>
+            </div>
+            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/settings'} className="text-xs font-semibold focus:bg-white/5 cursor-pointer py-2.5 rounded-lg">
+              <Settings className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-border/40" />
+            <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })} className="text-xs font-semibold text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer py-2.5 rounded-lg">
+              <LogOut className="w-3.5 h-3.5 mr-2" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* ── Mobile bottom nav ────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur-xl"

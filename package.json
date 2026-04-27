@@ -34,7 +34,10 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@tailwindcss/postcss": "^4",
+    "@tanstack/query-async-storage-persister": "^5.100.5",
+    "@tanstack/react-query-persist-client": "^5.100.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -42,8 +45,10 @@
     "dotenv": "^17.4.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "idb-keyval": "^6.2.2",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "webpack": "^5.106.2"
   }
 }

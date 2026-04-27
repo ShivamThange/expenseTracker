@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(curl -s http://localhost:3000)",
-      "Bash(taskkill /PID 5744 /F)"
+      "Bash(taskkill /PID 5744 /F)",
+      "PowerShell(taskkill *)",
+      "Bash(npm install *)",
+      "Bash(node scripts/generate-icons.js)"
     ]
   },
   "enabledPlugins": {

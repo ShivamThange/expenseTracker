@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { enqueueExpense } from '@/lib/offline/queue';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,12 +47,23 @@ export default function ScrollTextPage() {
     queryFn: () => fetch('/api/expenses?groupId=all').then((r) => r.json()),
   });
 
+  const { isOnline } = useOnlineStatus();
+
   const addPersonalExpense = useMutation({
-    mutationFn: (body: object) =>
-      fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json()),
+    mutationFn: async (body: object) => {
+      if (!isOnline) {
+        const tempId = await enqueueExpense(body);
+        return { expense: { ...body, id: tempId, _queued: true } };
+      }
+      return fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+    },
     onSuccess: (data) => {
       if (data.error) { toast.error(data.error); return; }
-      toast.success('Private record injected.');
+      if (data.expense?._queued) {
+        toast.info('Saved offline — will sync when connected');
+      } else {
+        toast.success('Private record injected.');
+      }
       queryClient.invalidateQueries({ queryKey: ['expenses', 'all'] });
       setAddPersonalOpen(false);
       setPersonalForm({ description: '', amount: '', category: 'General' });

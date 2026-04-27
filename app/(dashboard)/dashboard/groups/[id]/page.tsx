@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { enqueueExpense } from '@/lib/offline/queue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -96,12 +98,23 @@ export default function GroupDetailPage() {
     },
   });
 
+  const { isOnline } = useOnlineStatus();
+
   const addExpenseMutation = useMutation({
-    mutationFn: (body: object) =>
-      fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json()),
+    mutationFn: async (body: object) => {
+      if (!isOnline) {
+        const tempId = await enqueueExpense(body);
+        return { expense: { ...body, id: tempId, _queued: true } };
+      }
+      return fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+    },
     onSuccess: (data) => {
       if (data.error) { toast.error(data.error); return; }
-      toast.success('Expense added.');
+      if (data.expense?._queued) {
+        toast.info('Saved offline — will sync when connected');
+      } else {
+        toast.success('Expense added.');
+      }
       queryClient.invalidateQueries({ queryKey: ['expenses', id] });
       setAddExpenseOpen(false);
       resetExpenseEditor();
