@@ -105,7 +105,7 @@ async function assertGroupMember(
 }
 
 // ---------------------------------------------------------------------------
-// AGENT_TASK_402: Expense queries — all user-scoped
+// Expense queries — all user-scoped
 // ---------------------------------------------------------------------------
 
 /**
@@ -207,15 +207,11 @@ export async function getExpenseById(
   const expense = await Expense.findById(expenseId).lean();
   if (!expense) return null;
 
-  // Verify membership on the expense's group
-  const group = await Group.findOne({
-    _id: expense.groupId,
-    memberIds: new mongoose.Types.ObjectId(userId),
-  })
-    .select('_id')
-    .lean();
-
-  if (!group) return null; // user is not in this group
+  try {
+    await assertGroupMember(expense.groupId.toString(), userId);
+  } catch {
+    return null;
+  }
 
   return toExpenseDTO(expense as unknown as Record<string, unknown>);
 }

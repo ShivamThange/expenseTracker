@@ -3,12 +3,6 @@ import { auth } from '@/lib/auth/auth';
 import { generate } from '@/lib/ai/client';
 import { getExpensesByGroup } from '@/lib/db/queries/expenses';
 
-// ---------------------------------------------------------------------------
-// AGENT_TASK_603: POST /api/ai/insights
-//
-// Aggregates expense data for a group and asks Gemini to produce concise,
-// actionable spending insights. Results are returned as structured JSON.
-// ---------------------------------------------------------------------------
 
 const SYSTEM_INSTRUCTION = `You are a personal finance advisor analyzing shared group expenses. Your job is to analyze expense data and provide concise, actionable insights.
 

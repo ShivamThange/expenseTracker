@@ -51,7 +51,7 @@ function toGroupDTO(doc: Record<string, unknown>): GroupDTO {
 }
 
 // ---------------------------------------------------------------------------
-// AGENT_TASK_401: Group queries — all user-scoped
+// Group queries — all user-scoped
 // ---------------------------------------------------------------------------
 
 /**

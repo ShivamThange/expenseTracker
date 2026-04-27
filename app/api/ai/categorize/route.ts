@@ -2,13 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { generate } from '@/lib/ai/client';
 
-// ---------------------------------------------------------------------------
-// AGENT_TASK_602: POST /api/ai/categorize
-//
-// Accepts an expense description (and optional context) and returns an
-// AI-suggested category using Gemini. Returns one of the app's predefined
-// categories to keep data consistent.
-// ---------------------------------------------------------------------------
 
 const VALID_CATEGORIES = [
   'General',

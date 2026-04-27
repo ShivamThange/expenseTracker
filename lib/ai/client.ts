@@ -3,12 +3,7 @@ import 'server-only';
 import { GoogleGenAI } from '@google/genai';
 
 // ---------------------------------------------------------------------------
-// AGENT_TASK_601: Gemini AI Client (Updated for @google/genai SDK + Gemini 3)
-//
-// Singleton wrapper around the new Google GenAI SDK with:
-//   - Rate limiting (token-bucket style, 10 requests / minute)
-//   - Timeout control (15s default)
-//   - Structured error handling
+// Gemini AI Client — singleton with rate limiting, timeout, and model fallback
 // ---------------------------------------------------------------------------
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
