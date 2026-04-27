@@ -26,13 +26,13 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: 'Expense Tracker', template: '%s · Expense Tracker' },
-  description: 'Track shared expenses, settle debts fairly.',
+  title: { default: 'Riven', template: '%s · Riven' },
+  description: 'Split expenses, settle debts, and track spending — AI-powered.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Expense Tracker',
+    title: 'Riven',
   },
   icons: {
     apple: '/icons/apple-touch-icon.png',

@@ -1,7 +1,7 @@
 {
-  "name": "Expense Tracker",
-  "short_name": "ExpenseTracker",
-  "description": "Track shared expenses with your groups",
+  "name": "Riven",
+  "short_name": "Riven",
+  "description": "Split expenses, settle debts, and track spending — AI-powered.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#09090b",

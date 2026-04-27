@@ -75,10 +75,10 @@ export function Sidebar() {
         <div className="h-16 flex items-center px-5 border-b border-border/40 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
             <div className="w-7 h-7 rounded-md shrink-0 bg-primary flex items-center justify-center animate-glow-pulse">
-              <span className="text-primary-foreground font-black text-[11px] tracking-tight">ET</span>
+              <span className="text-primary-foreground font-black text-[11px] tracking-tight">RV</span>
             </div>
             <span className="font-display font-bold italic text-sm text-foreground tracking-tight">
-              Expense Tracker
+              Riven
             </span>
           </Link>
         </div>

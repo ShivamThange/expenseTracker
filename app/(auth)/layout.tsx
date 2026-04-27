@@ -17,10 +17,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group w-fit">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center animate-glow-pulse shrink-0">
-            <span className="text-primary-foreground font-black text-sm tracking-tight">ET</span>
+            <span className="text-primary-foreground font-black text-sm tracking-tight">RV</span>
           </div>
           <span className="font-display font-bold italic text-base text-foreground tracking-tight">
-            Expense Tracker
+            Riven
           </span>
         </Link>
 
@@ -62,9 +62,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Mobile brand */}
         <Link href="/" className="flex items-center gap-2.5 mb-8 lg:hidden">
           <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center animate-glow-pulse">
-            <span className="text-primary-foreground font-black text-[11px] tracking-tight">ET</span>
+            <span className="text-primary-foreground font-black text-[11px] tracking-tight">RV</span>
           </div>
-          <span className="font-display font-bold italic text-sm text-foreground tracking-tight">Expense Tracker</span>
+          <span className="font-display font-bold italic text-sm text-foreground tracking-tight">Riven</span>
         </Link>
 
         <div className="w-full max-w-[400px]">

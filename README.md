@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/PWA-Offline_Ready-5A0FC8?style=for-the-badge&logo=pwa" alt="PWA" />
 </p>
 
-<h1 align="center">💚 SplitWise — Neon Pulse</h1>
+<h1 align="center">💚 Riven — Neon Pulse</h1>
 
 <p align="center">
   <strong>A full-stack, AI-powered expense splitting & personal finance tracker</strong><br/>
@@ -29,7 +29,7 @@
 
 ## 🎯 Overview
 
-Splitting expenses among friends, roommates, or travel groups is a universal pain point. **SplitWise — Neon Pulse** solves it with:
+Splitting expenses among friends, roommates, or travel groups is a universal pain point. **Riven** solves it with:
 
 - **AI-Powered Bill Scanning** — Upload a receipt photo; Gemini parses line items, tax, and tip and auto-allocates costs using natural-language instructions ("Alice had only the burger, rest was shared")
 - **Minimum-Transaction Settlement** — A greedy debt-resolution algorithm that finds the fewest possible payments to clear all debts
@@ -353,7 +353,7 @@ When a group uses a non-INR currency, the Balances page fetches a live exchange 
 ## 🏛 Project Structure
 
 ```
-expensetracker/
+riven/
 ├── app/
 │   ├── (auth)/                      # Auth route group (public)
 │   │   ├── login/page.tsx
@@ -523,7 +523,7 @@ cp .env.example .env.local
 
 ```env
 # MongoDB
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/splitwise
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/riven
 
 # NextAuth — generate with: openssl rand -base64 32
 NEXTAUTH_SECRET=your-random-secret

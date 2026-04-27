@@ -19,10 +19,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center animate-glow-pulse shrink-0">
-              <span className="text-primary-foreground font-black text-[11px] tracking-tight">ET</span>
+              <span className="text-primary-foreground font-black text-[11px] tracking-tight">RV</span>
             </div>
             <span className="font-display font-bold text-base italic text-foreground tracking-tight">
-              Expense Tracker
+              Riven
             </span>
           </Link>
           <nav className="flex items-center gap-2">
@@ -234,10 +234,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-5 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-black text-[9px]">ET</span>
+              <span className="text-primary-foreground font-black text-[9px]">RV</span>
             </div>
             <span className="text-xs text-muted-foreground font-medium">
-              © {new Date().getFullYear()} Expense Tracker
+              © {new Date().getFullYear()} Riven
             </span>
           </div>
           <div className="flex items-center gap-8">
