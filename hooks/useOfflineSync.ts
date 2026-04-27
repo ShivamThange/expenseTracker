@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { flushQueue, getQueue, QueuedExpense, QUEUE_UPDATED_EVENT } from '@/lib/offline/queue';
@@ -9,6 +9,7 @@ export function useOfflineSync() {
   const queryClient = useQueryClient();
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const isSyncingRef = useRef(false);
 
   const refreshPendingCount = useCallback(async () => {
     const queue = await getQueue();
@@ -16,12 +17,15 @@ export function useOfflineSync() {
   }, []);
 
   const syncQueue = useCallback(async () => {
+    if (isSyncingRef.current) return;
+
     const queue = await getQueue();
     if (queue.length === 0) {
       setPendingCount(0);
       return;
     }
 
+    isSyncingRef.current = true;
     setIsSyncing(true);
     try {
       const { synced, failed } = await flushQueue(async (item: QueuedExpense) => {
@@ -49,6 +53,7 @@ export function useOfflineSync() {
     } catch (err) {
       console.error('Sync error:', err);
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
       refreshPendingCount();
     }
