@@ -83,87 +83,129 @@ export interface GenerateResult {
 export interface GenerateError {
   success: false;
   error: string;
-  code: 'NO_API_KEY' | 'RATE_LIMITED' | 'TIMEOUT' | 'GENERATION_ERROR' | 'BLOCKED';
+  code: 'NO_API_KEY' | 'RATE_LIMITED' | 'TIMEOUT' | 'GENERATION_ERROR' | 'BLOCKED' | 'OVERLOADED';
 }
 
 export type GenerateResponse = GenerateResult | GenerateError;
 
-/**
- * Generate text using Google Gemini via the new @google/genai SDK.
- * Includes built-in rate limiting, timeout control, and structured error handling.
- */
-export async function generate(options: GenerateOptions): Promise<GenerateResponse> {
+// Fallback chain tried in order when the primary model is overloaded.
+const FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+
+function isOverloadedError(message: string): boolean {
+  return (
+    message.includes('503') ||
+    message.includes('overloaded') ||
+    message.includes('UNAVAILABLE') ||
+    message.includes('Service Unavailable') ||
+    // 429 from Gemini means quota/capacity, treat as overload for fallback purposes
+    message.includes('429') ||
+    message.includes('RESOURCE_EXHAUSTED')
+  );
+}
+
+async function generateWithModel(
+  modelName: string,
+  options: GenerateOptions
+): Promise<GenerateResponse> {
   const {
     systemInstruction,
     prompt,
     imageParts,
     timeoutMs = 15_000,
-    model: modelName = 'gemini-2.5-flash',
     temperature = 1.0,
     maxOutputTokens = 1024,
     responseMimeType,
     responseJsonSchema,
   } = options;
 
-  // Check API key
+  const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [];
+  if (imageParts) {
+    for (const img of imageParts) parts.push(img);
+  }
+  parts.push({ text: prompt });
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('AI request timed out')), timeoutMs)
+  );
+
+  const generatePromise = ai!.models.generateContent({
+    model: modelName,
+    contents: [{ role: 'user', parts }],
+    config: {
+      temperature,
+      maxOutputTokens,
+      ...(systemInstruction ? { systemInstruction } : {}),
+      ...(responseMimeType ? { responseMimeType } : {}),
+      ...(responseJsonSchema ? { responseJsonSchema } : {}),
+    },
+  });
+
+  const result = await Promise.race([generatePromise, timeoutPromise]);
+  const text = result.text;
+
+  if (!text || text.trim().length === 0) {
+    return { success: false, error: 'AI returned an empty response', code: 'GENERATION_ERROR' };
+  }
+
+  return { success: true, text: text.trim() };
+}
+
+/**
+ * Generate text using Google Gemini via the new @google/genai SDK.
+ * Includes built-in rate limiting, timeout control, structured error handling,
+ * and automatic fallback to other models when the primary is overloaded.
+ */
+export async function generate(options: GenerateOptions): Promise<GenerateResponse> {
   if (!ai) {
     return { success: false, error: 'Gemini API key is not configured', code: 'NO_API_KEY' };
   }
 
-  // Check rate limit
   if (!consumeRateToken()) {
     return { success: false, error: 'AI rate limit exceeded. Please try again later.', code: 'RATE_LIMITED' };
   }
 
-  try {
-    // Build the contents array for the new SDK
-    const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [];
+  const primaryModel = options.model ?? 'gemini-2.5-flash';
+  const modelsToTry = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
 
-    if (imageParts) {
-      for (const img of imageParts) {
-        parts.push(img);
+  let lastError = '';
+
+  for (const modelName of modelsToTry) {
+    try {
+      const result = await generateWithModel(modelName, { ...options, model: modelName });
+
+      if (result.success) {
+        if (modelName !== primaryModel) {
+          console.warn(`[AI Client] Primary model overloaded — used fallback: ${modelName}`);
+        }
+        return result;
       }
+
+      // Non-overload failures (blocked, empty) — don't try other models
+      return result;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown AI error';
+
+      if (message.includes('timed out')) {
+        return { success: false, error: 'AI request timed out', code: 'TIMEOUT' };
+      }
+      if (message.includes('SAFETY') || message.includes('blocked')) {
+        return { success: false, error: 'Response blocked by safety filters', code: 'BLOCKED' };
+      }
+
+      if (isOverloadedError(message)) {
+        console.warn(`[AI Client] Model ${modelName} overloaded, trying next fallback...`);
+        lastError = message;
+        continue;
+      }
+
+      console.error('[AI Client]', error);
+      return { success: false, error: message, code: 'GENERATION_ERROR' };
     }
-
-    parts.push({ text: prompt });
-
-    // Race between generation and timeout
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('AI request timed out')), timeoutMs);
-    });
-
-    const generatePromise = ai.models.generateContent({
-      model: modelName,
-      contents: [{ role: 'user', parts }],
-      config: {
-        temperature,
-        maxOutputTokens,
-        ...(systemInstruction ? { systemInstruction } : {}),
-        ...(responseMimeType ? { responseMimeType } : {}),
-        ...(responseJsonSchema ? { responseJsonSchema } : {}),
-      },
-    });
-
-    const result = await Promise.race([generatePromise, timeoutPromise]);
-
-    const text = result.text;
-
-    if (!text || text.trim().length === 0) {
-      return { success: false, error: 'AI returned an empty response', code: 'GENERATION_ERROR' };
-    }
-
-    return { success: true, text: text.trim() };
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown AI error';
-
-    if (message.includes('timed out')) {
-      return { success: false, error: 'AI request timed out', code: 'TIMEOUT' };
-    }
-    if (message.includes('SAFETY') || message.includes('blocked')) {
-      return { success: false, error: 'Response blocked by safety filters', code: 'BLOCKED' };
-    }
-
-    console.error('[AI Client]', error);
-    return { success: false, error: message, code: 'GENERATION_ERROR' };
   }
+
+  return {
+    success: false,
+    error: `All models are currently overloaded. Please try again shortly. (${lastError})`,
+    code: 'OVERLOADED',
+  };
 }
