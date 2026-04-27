@@ -8,6 +8,7 @@ import { get, set, del } from 'idb-keyval';
 import { Toaster } from '@/components/ui/sonner';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { SyncBadge } from '@/components/ui/SyncBadge';
+import { OfflineSyncProvider } from '@/components/OfflineSyncProvider';
 import { useState } from 'react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -38,10 +39,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         client={queryClient}
         persistOptions={{ persister: idbPersister, maxAge: 1000 * 60 * 60 * 24 }}
       >
-        <OfflineBanner />
-        <SyncBadge />
-        {children}
-        <Toaster richColors position="top-right" />
+        <OfflineSyncProvider>
+          <OfflineBanner />
+          <SyncBadge />
+          {children}
+          <Toaster richColors position="top-right" />
+        </OfflineSyncProvider>
       </PersistQueryClientProvider>
     </SessionProvider>
   );
