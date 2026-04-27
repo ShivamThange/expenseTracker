@@ -165,11 +165,20 @@ export function Sidebar() {
               </Avatar>
             </button>
           } />
-          <DropdownMenuContent align="end" className="w-48 bg-card border-border/50 rounded-xl shadow-xl">
+          <DropdownMenuContent align="end" className="w-52 bg-card border-border/50 rounded-xl shadow-xl">
             <div className="px-3 py-2 text-[10px] text-muted-foreground border-b border-border/40">
               <p className="text-xs font-semibold text-foreground truncate">{user?.name}</p>
               <p className="text-[10px] text-muted-foreground truncate mt-0.5">{user?.email}</p>
             </div>
+            {showInstall && (
+              <>
+                <DropdownMenuItem onClick={handleInstall} className="text-xs font-semibold focus:bg-primary/10 focus:text-primary cursor-pointer py-2.5 rounded-lg text-primary">
+                  <Download className="w-3.5 h-3.5 mr-2" />
+                  Install App
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border/40" />
+              </>
+            )}
             <DropdownMenuItem onClick={() => window.location.href = '/dashboard/settings'} className="text-xs font-semibold focus:bg-white/5 cursor-pointer py-2.5 rounded-lg">
               <Settings className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
               Settings

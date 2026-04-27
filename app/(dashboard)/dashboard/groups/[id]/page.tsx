@@ -101,21 +101,27 @@ export default function GroupDetailPage() {
   const { isOnline } = useOnlineStatus();
 
   const addExpenseMutation = useMutation({
-    mutationFn: async (body: object) => {
+    mutationFn: async (body: Record<string, any>) => {
       if (!isOnline) {
         const tempId = await enqueueExpense(body);
         return { expense: { ...body, id: tempId, _queued: true } };
       }
       return fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data.error) { toast.error(data.error); return; }
       if (data.expense?._queued) {
         toast.info('Saved offline — will sync when connected');
+        // Optimistically add to local cache so user sees it immediately
+        queryClient.setQueryData(['expenses', id], (old: any) => {
+          if (!old?.expenses) return old;
+          return { ...old, expenses: [data.expense, ...old.expenses] };
+        });
       } else {
         toast.success('Expense added.');
+        queryClient.invalidateQueries({ queryKey: ['expenses', id] });
+        queryClient.invalidateQueries({ queryKey: ['expenses', 'all'] });
       }
-      queryClient.invalidateQueries({ queryKey: ['expenses', id] });
       setAddExpenseOpen(false);
       resetExpenseEditor();
     },

@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8 sm:space-y-10">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 pt-2">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 pt-2">
         <div>
           <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1.5">Dashboard</p>
           <h1 className="font-display italic font-black text-3xl sm:text-4xl tracking-tight text-foreground">
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
             Here's a snapshot of your shared expenses.
           </p>
         </div>
-        <Button asChild className="neon-glow-lg rounded-lg font-bold text-xs h-9 px-4 shrink-0 mt-1">
+        <Button asChild className="neon-glow-lg rounded-lg font-bold text-xs h-9 px-4 w-fit sm:mt-1">
           <Link href="/dashboard/groups" className="flex items-center gap-2">
             <Plus className="w-3.5 h-3.5" />
             <span>New group</span>

@@ -1,16 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { flushQueue, getQueue, QueuedExpense } from '@/lib/offline/queue';
+import { flushQueue, getQueue, QueuedExpense, QUEUE_UPDATED_EVENT } from '@/lib/offline/queue';
 
 export function useOfflineSync() {
   const queryClient = useQueryClient();
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const syncQueue = async () => {
+  const refreshPendingCount = useCallback(async () => {
+    const queue = await getQueue();
+    setPendingCount(queue.length);
+  }, []);
+
+  const syncQueue = useCallback(async () => {
     const queue = await getQueue();
     if (queue.length === 0) {
       setPendingCount(0);
@@ -26,54 +31,46 @@ export function useOfflineSync() {
           body: JSON.stringify(item.payload),
         });
 
-        if (!response.ok) {
-          throw new Error(`Failed to sync: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`Sync failed: ${response.statusText}`);
 
         const data = await response.json();
         if (data.error) throw new Error(data.error);
 
-        const { groupId } = item.payload;
-        queryClient.invalidateQueries({ queryKey: ['expenses', groupId] });
+        const groupId = item.payload.groupId;
+        if (groupId) {
+          queryClient.invalidateQueries({ queryKey: ['expenses', groupId] });
+        }
         queryClient.invalidateQueries({ queryKey: ['expenses', 'all'] });
-
-        return data;
+        queryClient.invalidateQueries({ queryKey: ['groups'] });
       });
 
-      if (synced > 0) {
-        toast.success(`Synced ${synced} expense${synced === 1 ? '' : 's'}`);
-      }
-      if (failed > 0) {
-        toast.error(`${failed} expense${failed === 1 ? '' : 's'} failed to sync — will retry later`);
-      }
-
-      const remaining = await getQueue();
-      setPendingCount(remaining.length);
+      if (synced > 0) toast.success(`Synced ${synced} expense${synced === 1 ? '' : 's'}`);
+      if (failed > 0) toast.error(`${failed} expense${failed === 1 ? '' : 's'} failed to sync — will retry`);
     } catch (err) {
       console.error('Sync error:', err);
-      toast.error('Failed to sync expenses');
     } finally {
       setIsSyncing(false);
+      refreshPendingCount();
     }
-  };
+  }, [queryClient, refreshPendingCount]);
 
+  // Refresh count on mount and when queue changes
   useEffect(() => {
-    const updatePendingCount = async () => {
-      const queue = await getQueue();
-      setPendingCount(queue.length);
-    };
+    refreshPendingCount();
+    window.addEventListener(QUEUE_UPDATED_EVENT, refreshPendingCount);
+    return () => window.removeEventListener(QUEUE_UPDATED_EVENT, refreshPendingCount);
+  }, [refreshPendingCount]);
 
-    updatePendingCount();
-  }, []);
-
+  // Sync on reconnect and on mount if already online
   useEffect(() => {
-    const handleOnline = () => {
-      syncQueue();
-    };
-
+    const handleOnline = () => syncQueue();
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [queryClient]);
 
-  return { pendingCount, isSyncing };
+    // Also attempt sync on mount in case app loaded while online with queued items
+    if (navigator.onLine) syncQueue();
+
+    return () => window.removeEventListener('online', handleOnline);
+  }, [syncQueue]);
+
+  return { pendingCount, isSyncing, syncQueue };
 }

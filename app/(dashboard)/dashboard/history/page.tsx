@@ -50,7 +50,7 @@ export default function ScrollTextPage() {
   const { isOnline } = useOnlineStatus();
 
   const addPersonalExpense = useMutation({
-    mutationFn: async (body: object) => {
+    mutationFn: async (body: Record<string, any>) => {
       if (!isOnline) {
         const tempId = await enqueueExpense(body);
         return { expense: { ...body, id: tempId, _queued: true } };
@@ -61,10 +61,14 @@ export default function ScrollTextPage() {
       if (data.error) { toast.error(data.error); return; }
       if (data.expense?._queued) {
         toast.info('Saved offline — will sync when connected');
+        queryClient.setQueryData(['expenses', 'all'], (old: any) => {
+          if (!old?.expenses) return old;
+          return { ...old, expenses: [data.expense, ...old.expenses] };
+        });
       } else {
         toast.success('Private record injected.');
+        queryClient.invalidateQueries({ queryKey: ['expenses', 'all'] });
       }
-      queryClient.invalidateQueries({ queryKey: ['expenses', 'all'] });
       setAddPersonalOpen(false);
       setPersonalForm({ description: '', amount: '', category: 'General' });
     },
