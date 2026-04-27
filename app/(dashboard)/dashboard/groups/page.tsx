@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { Contact, Plus } from 'lucide-react';
 
 type Group = {
   id: string;
@@ -56,40 +57,47 @@ export default function GroupsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter">Networks</h1>
-          <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Manage your shared ledgers</p>
+          <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1.5">Manage</p>
+          <h1 className="font-display italic font-black text-3xl sm:text-4xl tracking-tight text-foreground">Groups</h1>
+          <p className="text-muted-foreground text-sm mt-1.5 font-light">Manage your expense groups</p>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button className="neon-glow rounded-sm font-bold uppercase tracking-widest text-xs h-10 px-6">Initialize Network</Button>} />
-          <DialogContent>
+          <DialogTrigger render={
+            <Button className="neon-glow rounded-lg font-bold text-xs h-9 px-5 gap-2 shrink-0">
+              <Plus className="w-3.5 h-3.5" /> Create group
+            </Button>
+          } />
+          <DialogContent className="bg-card border-border/50 rounded-xl">
             <DialogHeader>
-              <DialogTitle className="font-black uppercase tracking-widest">Initialize Network</DialogTitle>
+              <DialogTitle className="font-display italic font-black text-xl tracking-tight">Create group</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Network Name *</Label>
-                <Input id="name" placeholder="E.G. PROJECT OMEGA" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
+                <Label htmlFor="name" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Group name *</Label>
+                <Input id="name" placeholder="e.g. Roommates, Trip, Dinner" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-[var(--surface-input)] rounded-lg input-glow border-border focus:border-primary" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="desc" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Context</Label>
-                <Textarea id="desc" placeholder="Operational parameters..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
+                <Label htmlFor="desc" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Description</Label>
+                <Textarea id="desc" placeholder="Add details about this group..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="bg-[var(--surface-input)] rounded-lg input-glow border-border focus:border-primary resize-none" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Base Currency</Label>
+                <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Currency</Label>
                 <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v ?? '' })}>
-                  <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="bg-[var(--surface-input)] rounded-lg border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border/50 rounded-xl">
                     {['USD', 'EUR', 'GBP', 'JPY', 'INR', 'AUD', 'CAD', 'SGD'].map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c} className="font-mono text-xs">{c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-4" disabled={!form.name.trim() || createMutation.isPending} onClick={() => createMutation.mutate(form)}>
-                {createMutation.isPending ? 'Executing...' : 'Deploy'}
+              <Button className="w-full neon-glow rounded-lg font-bold mt-4" disabled={!form.name.trim() || createMutation.isPending} onClick={() => createMutation.mutate(form)}>
+                {createMutation.isPending ? 'Creating…' : 'Create group'}
               </Button>
             </div>
           </DialogContent>
@@ -98,39 +106,40 @@ export default function GroupsPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-xl bg-muted" />)}
         </div>
       ) : groups.length === 0 ? (
-        <Card className="border-dashed border-border/50 bg-transparent">
+        <Card className="border-dashed border-border/50 bg-transparent rounded-xl">
           <CardContent className="py-16 text-center">
-            <div className="w-16 h-16 mx-auto border border-dashed border-muted-foreground/30 flex items-center justify-center rounded-sm mb-6">
-               <span className="text-muted-foreground font-mono text-2xl">+</span>
+            <div className="w-14 h-14 mx-auto border border-dashed border-primary/30 flex items-center justify-center rounded-xl mb-5">
+              <span className="text-primary text-xl">+</span>
             </div>
-            <p className="font-bold uppercase tracking-wider text-sm mb-2">No Networks Registered</p>
-            <p className="text-muted-foreground font-mono text-xs mt-1 mb-8 uppercase tracking-widest">Deploy a protocol to begin</p>
-            <Button onClick={() => setOpen(true)} className="neon-glow rounded-sm font-bold uppercase tracking-widest text-xs px-6 h-10">Initialize Network</Button>
+            <p className="font-bold text-sm mb-1.5">No groups yet</p>
+            <p className="text-muted-foreground text-xs mb-7 font-light">Create your first group to start tracking expenses</p>
+            <Button onClick={() => setOpen(true)} className="neon-glow rounded-lg font-bold text-xs px-6 h-9">Create group</Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {groups.map((group) => (
             <Link key={group.id} href={`/dashboard/groups/${group.id}`}>
-              <Card className="card-glass hover:border-primary/50 hover:shadow-[0_0_15px_rgba(200,255,0,0.1)] transition-all cursor-pointer h-full rounded-sm">
+              <Card className="card-glass card-hover rounded-xl cursor-pointer h-full border-border/50 hover:border-primary/25 transition-all">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base leading-snug font-bold uppercase tracking-wider">{group.name}</CardTitle>
-                    <Badge variant="outline" className="shrink-0 font-mono text-[10px] border-secondary text-secondary bg-secondary/5 rounded-sm">{group.currency}</Badge>
+                    <CardTitle className="text-sm font-bold text-foreground leading-snug">{group.name}</CardTitle>
+                    <Badge className="badge-azure shrink-0 font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">{group.currency}</Badge>
                   </div>
                   {group.description && (
-                    <p className="text-xs font-mono text-muted-foreground line-clamp-2 mt-2">{group.description}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1.5 font-light">{group.description}</p>
                   )}
                 </CardHeader>
                 <CardContent>
-                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                    [ {group.memberIds.length} Nodes ]
-                    <span className="mx-2 text-primary/50">/</span>
-                    {new Date(group.createdAt).toISOString().split('T')[0]}
-                  </p>
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Contact className="w-3.5 h-3.5" />
+                    {group.memberIds.length} {group.memberIds.length === 1 ? 'member' : 'members'}
+                    <span className="text-primary/30 mx-1">·</span>
+                    {new Date(group.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
                 </CardContent>
               </Card>
             </Link>

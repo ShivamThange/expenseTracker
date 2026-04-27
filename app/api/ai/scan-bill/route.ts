@@ -24,6 +24,33 @@ type ScanBillResponse = {
 
 type MemberRef = { id: string; name: string };
 
+const scanBillResponseSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['description', 'amount', 'category', 'memberShares'],
+  properties: {
+    description: { type: 'string' },
+    amount: { type: 'number' },
+    category: {
+      type: 'string',
+      enum: Array.from(VALID_CATEGORIES),
+    },
+    memberShares: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['userId', 'userName', 'amount'],
+        properties: {
+          userId: { type: 'string' },
+          userName: { type: 'string' },
+          amount: { type: 'number' },
+        },
+      },
+    },
+  },
+} as const;
+
 function extractJsonText(rawText: string): string {
   const trimmed = rawText.trim();
   const codeFenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -57,6 +84,29 @@ function safeJsonParse(rawJsonText: string): unknown {
   }
 }
 
+function parseLooseObjectFromText(rawText: string): Record<string, unknown> {
+  const text = rawText.trim();
+  const loose: Record<string, unknown> = {};
+
+  // Works even when JSON is truncated after these fields.
+  const descriptionMatch = text.match(/"description"\s*:\s*"([^"\r\n]*)/i);
+  if (descriptionMatch?.[1]) {
+    loose.description = descriptionMatch[1];
+  }
+
+  const amountMatch = text.match(/"amount"\s*:\s*(-?\d+(?:\.\d+)?)/i);
+  if (amountMatch?.[1]) {
+    loose.amount = Number(amountMatch[1]);
+  }
+
+  const categoryMatch = text.match(/"category"\s*:\s*"([^"\r\n]*)/i);
+  if (categoryMatch?.[1]) {
+    loose.category = categoryMatch[1];
+  }
+
+  return loose;
+}
+
 function parseNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -73,7 +123,12 @@ function normalizeName(name: string): string {
 
 function parseAndNormalize(rawText: string, fallbackMembers: MemberRef[]): ScanBillResponse {
   const jsonText = extractJsonText(rawText);
-  const parsedUnknown = safeJsonParse(jsonText);
+  let parsedUnknown: unknown;
+  try {
+    parsedUnknown = safeJsonParse(jsonText);
+  } catch {
+    parsedUnknown = parseLooseObjectFromText(rawText);
+  }
 
   const unwrapObject = (value: unknown): Record<string, unknown> => {
     if (typeof value === 'string') {
@@ -233,6 +288,119 @@ function parseAndNormalize(rawText: string, fallbackMembers: MemberRef[]): ScanB
   };
 }
 
+function buildFallbackResponseFromRawText(rawText: string, members: MemberRef[]): ScanBillResponse | null {
+  const loose = parseLooseObjectFromText(rawText);
+  const amount = parseNumber(loose.amount);
+
+  if (amount === null || amount <= 0 || members.length === 0) {
+    return null;
+  }
+
+  const description = typeof loose.description === 'string' && loose.description.trim()
+    ? loose.description.trim()
+    : 'Scanned Bill';
+
+  const category = typeof loose.category === 'string' && VALID_CATEGORIES.has(loose.category)
+    ? loose.category
+    : 'General';
+
+  const baseShare = Math.round((amount / members.length) * 100) / 100;
+  const memberShares = members.map((member) => ({
+    userId: member.id,
+    userName: member.name,
+    amount: baseShare,
+  }));
+
+  const diff = Math.round((amount - memberShares.reduce((sum, share) => sum + share.amount, 0)) * 100) / 100;
+  if (diff !== 0) {
+    memberShares[0].amount = Math.round((memberShares[0].amount + diff) * 100) / 100;
+  }
+
+  return {
+    description,
+    amount,
+    category,
+    memberShares,
+    splits: memberShares.map((share) => ({ userId: share.userId, amount: share.amount })),
+  };
+}
+
+function buildSystemInstruction(): string {
+  return `You are an expert bill parser and cost allocator. Your job is to read a receipt image and assign each line item to the correct person based on the user's description.
+
+## STRICT RULES
+
+1. **User instructions are the highest priority.** If the user says "Alex had the burger, Sam had the salad", you MUST assign those specific items to those specific people — do NOT split them equally.
+2. **Unequal splits are expected and correct** when the user describes who ordered what.
+3. **Always prorate overhead** (tax, tip, service charge, delivery fee) proportionally: each person's overhead = (their food subtotal / total food subtotal) × total overhead.
+4. **Unmentioned items** that no one claimed: split equally among all members.
+5. **The sum of all memberShares.amount MUST equal the bill total exactly.** Adjust the first member by any rounding difference.
+6. Only use member IDs and names from the provided members list — never invent members.
+7. Return ONLY a raw JSON object. No markdown, no code fences, no explanation.
+
+## ALGORITHM
+
+Step 1 — Extract all line items and prices from the receipt.
+Step 2 — Separate overhead lines (tax, tip, gratuity, fees) from food/item lines.
+Step 3 — Read the user's message and map each mentioned item to the person who had it.
+Step 4 — For each person: sum their item prices, then add (their subtotal / total food subtotal) × total overhead.
+Step 5 — Any unclaimed food items: add their cost divided equally to each member's share.
+Step 6 — Verify the total matches; adjust first member for rounding.
+Step 7 — Output the JSON.
+
+## EXAMPLE
+
+Receipt: Burger $15, Salad $10, Tax $2.50, Total $27.50
+User says: "Alice had the burger, Bob had the salad"
+Food subtotal = $25. Overhead = $2.50.
+Alice: $15 + (15/25 × 2.50) = $15 + $1.50 = $16.50
+Bob: $10 + (10/25 × 2.50) = $10 + $1.00 = $11.00
+Total: $27.50 ✓`;
+}
+
+function buildPrompt(memberRefs: MemberRef[], message: string | undefined, malformedResponse?: string): string {
+  const userInstruction = message?.trim()
+    ? `USER INSTRUCTIONS (follow these exactly to assign items to people):\n"${message.trim()}"`
+    : `USER INSTRUCTIONS: None provided. Split the entire total equally among all members.`;
+
+  const basePrompt = `${userInstruction}
+
+MEMBERS (use only these IDs and names):
+${JSON.stringify(memberRefs, null, 2)}
+
+Now parse the receipt image and return a JSON object with the fields: description, amount, category, memberShares.`;
+
+  if (!malformedResponse) {
+    return basePrompt;
+  }
+
+  return `${basePrompt}
+
+IMPORTANT: Your previous response was malformed JSON:
+${malformedResponse}
+
+Return one complete, valid JSON object only. No truncation.`;
+}
+
+async function generateBillAllocation(
+  imageBase64: string,
+  mimeType: string,
+  memberRefs: MemberRef[],
+  message?: string,
+  malformedResponse?: string
+) {
+  return generate({
+    systemInstruction: buildSystemInstruction(),
+    prompt: buildPrompt(memberRefs, message, malformedResponse),
+    imageParts: [{ inlineData: { data: imageBase64, mimeType } }],
+    timeoutMs: 45000,
+    responseMimeType: 'application/json',
+    responseJsonSchema: scanBillResponseSchema,
+    temperature: 0.2,
+    maxOutputTokens: 2048,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -254,36 +422,7 @@ export async function POST(req: NextRequest) {
       }))
       .filter((member) => Boolean(member.id) && Boolean(member.name));
 
-    const systemInstruction = `You are an expert bill and receipt parser. You are given an image of a receipt/bill and an optional user message specifying who consumed what. You also receive a list of the group members with their IDs and names.
-
-Your goal is to parse the bill and allocate the costs to the correct members based on the user message.
-- Consider taxes, tips, and other overheads by spreading them proportionally among the allocated items.
-- If the user specifies an item, find its price on the receipt, add its proportional share of overhead, and assign it to that user.
-- Any remaining unassigned items or costs should be split equally among all members.
-- If no user message is given, split the entire total equally among all members.
-- Total sum of shares MUST exactly match the overall bill total amount. Adjust fractional cents on the first user to ensure perfect match.
-
-Return ONLY a raw JSON object with the following schema:
-{
-  "description": string, // short description (e.g. "Dinner at McDonald's")
-  "amount": number, // exact total amount of the bill
-  "category": string, // 'General' | 'Food' | 'Transport' | 'Accommodation' | 'Entertainment' | 'Shopping' | 'Utilities'
-  "memberShares": [
-    { "userId": string, "userName": string, "amount": number } // only use IDs and names from provided members list; amounts must sum exactly to total amount
-  ]
-}`;
-
-    const prompt = `Members available: ${JSON.stringify(memberRefs)}
-Message from user: ${message || 'No additional instructions provided. Split evenly.'}`;
-
-    const result = await generate({
-      systemInstruction,
-      prompt,
-      imageParts: [{ inlineData: { data: imageBase64, mimeType } }],
-      timeoutMs: 45000, 
-      responseMimeType: 'application/json',
-      temperature: 0.1, // very low temperature for analytical tasks
-    });
+    const result = await generateBillAllocation(imageBase64, mimeType, memberRefs, message);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
@@ -295,6 +434,30 @@ Message from user: ${message || 'No additional instructions provided. Split even
     } catch (parseError: unknown) {
       const message = parseError instanceof Error ? parseError.message : 'Unknown parse error';
       console.error('[AI Bill Scan] JSON Parse Error:', { message, aiText: result.text });
+
+      const retryResult = await generateBillAllocation(imageBase64, mimeType, memberRefs, message, result.text);
+      if (retryResult.success) {
+        try {
+          const retriedParsed = parseAndNormalize(retryResult.text, memberRefs);
+          return NextResponse.json(retriedParsed);
+        } catch (retryParseError: unknown) {
+          const retryMessage = retryParseError instanceof Error ? retryParseError.message : 'Unknown parse error';
+          console.error('[AI Bill Scan] Retry Parse Error:', { message: retryMessage, aiText: retryResult.text });
+
+          const retryFallback = buildFallbackResponseFromRawText(retryResult.text, memberRefs);
+          if (retryFallback) {
+            console.warn('[AI Bill Scan] Recovered from partial AI response after retry');
+            return NextResponse.json(retryFallback);
+          }
+        }
+      }
+
+      const fallback = buildFallbackResponseFromRawText(result.text, memberRefs);
+      if (fallback) {
+        console.warn('[AI Bill Scan] Recovered from partial AI response');
+        return NextResponse.json(fallback);
+      }
+
       return NextResponse.json(
         {
           error: 'Failed to parse AI response',

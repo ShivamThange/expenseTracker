@@ -9,11 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Settings, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Settings, TrendingUp, TrendingDown, TriangleAlert, Crosshair } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 interface Expense {
   id: string;
   amount: number;
@@ -25,18 +22,14 @@ interface Expense {
 interface CategorySpend {
   category: string;
   amount: number;
-  pct: number; // percentage of total
+  pct: number;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 export function SpendingAnalytics() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
 
-  // Budget
   const { data: budgetData } = useQuery<{ budget: number }>({
     queryKey: ['budget'],
     queryFn: () => fetch('/api/user/budget').then(r => r.json()),
@@ -57,13 +50,11 @@ export function SpendingAnalytics() {
     },
   });
 
-  // All expenses (current month)
   const { data: expData } = useQuery<{ expenses: Expense[] }>({
     queryKey: ['expenses', 'all'],
     queryFn: () => fetch('/api/expenses?groupId=all&limit=1000').then(r => r.json()),
   });
 
-  // Compute spending metrics
   const now = new Date();
   const monthStartMs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const monthEndMs = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
@@ -81,7 +72,6 @@ export function SpendingAnalytics() {
 
   const totalSpent = myExpensesThisMonth.reduce((sum, e) => sum + e.amount, 0);
 
-  // Category breakdown
   const categoryBreakdown: CategorySpend[] = useMemo(() => {
     const map = new Map<string, number>();
     for (const e of myExpensesThisMonth) {
@@ -96,49 +86,50 @@ export function SpendingAnalytics() {
       .sort((a, b) => b.amount - a.amount);
   }, [myExpensesThisMonth, totalSpent]);
 
-  // Budget calculations
   const budgetPct = budget > 0 ? Math.min(Math.round((totalSpent / budget) * 100), 100) : 0;
   const remaining = budget > 0 ? Math.max(budget - totalSpent, 0) : 0;
   const isOverBudget = budget > 0 && totalSpent > budget;
   const dailyAvgSpend = dayOfMonth > 0 ? totalSpent / dayOfMonth : 0;
   const projectedMonthly = dailyAvgSpend * daysInMonth;
 
-  // Bar color
-  const getBarColor = useCallback((pct: number) => {
-    if (pct >= 100) return 'bg-destructive';
-    if (pct >= 75) return 'bg-yellow-500';
-    return 'bg-primary';
+  const getBarClasses = useCallback((pct: number) => {
+    if (pct >= 100) return 'progress-danger';
+    if (pct >= 75) return 'progress-warning';
+    return 'progress-lime';
   }, []);
 
-  const categoryColors = ['bg-primary', 'bg-secondary', 'bg-blue-500', 'bg-yellow-500', 'bg-teal-500', 'bg-orange-500', 'bg-pink-500'];
+  const categoryColors = ['#F07040', '#4B8BF4', '#52C8A8', '#E8B847', '#9B6EE8', '#E05252'];
 
   const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-          Spending Analytics — {monthLabel}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-display italic font-black text-xl text-foreground tracking-tight">Spending</h2>
+          <span className="text-[11px] text-muted-foreground font-medium">{monthLabel}</span>
+        </div>
         <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
           <DialogTrigger render={
-            <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-widest border-border/50 rounded-sm hover:bg-white/5">
-              <Settings className="w-3 h-3 mr-1.5" /> {budget > 0 ? 'Edit Budget' : 'Set Budget'}
+            <Button variant="outline" size="sm" className="h-7 text-xs font-semibold border-border/50 rounded-lg hover:bg-white/4 gap-1.5">
+              <Settings className="w-3 h-3" /> {budget > 0 ? 'Edit budget' : 'Set budget'}
             </Button>
           } />
-          <DialogContent className="sm:max-w-sm bg-[#0a0a0a] border border-border/50 rounded-sm">
-            <DialogHeader><DialogTitle className="font-black uppercase tracking-widest text-sm">Monthly Budget</DialogTitle></DialogHeader>
+          <DialogContent className="sm:max-w-sm bg-card border-border/50 rounded-xl">
+            <DialogHeader>
+              <DialogTitle className="font-display italic font-black text-lg tracking-tight">Set monthly budget</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-1.5">
-                <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Set your spending limit for this month</p>
+                <p className="text-xs font-semibold text-muted-foreground">Your spending limit for this month</p>
                 <Input
                   type="number" min="0" step="100" placeholder="e.g. 5000"
                   value={effectiveBudgetInput} onChange={e => setBudgetInput(e.target.value)}
-                  className="font-mono text-right bg-[#111] rounded-sm text-lg h-12 focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="mono-data text-right bg-[var(--surface-input)] rounded-lg text-lg h-12 input-glow border-border focus:border-primary"
                 />
               </div>
               <Button
-                className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest"
+                className="w-full neon-glow-lg rounded-lg font-bold"
                 disabled={setBudgetMutation.isPending}
                 onClick={() => {
                   const val = parseFloat(effectiveBudgetInput);
@@ -146,88 +137,92 @@ export function SpendingAnalytics() {
                   setBudgetMutation.mutate(val);
                 }}
               >
-                {setBudgetMutation.isPending ? 'Saving...' : 'Lock Budget'}
+                {setBudgetMutation.isPending ? 'Saving…' : 'Set budget'}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Main spending card with budget progress */}
-        <Card className="card-glass rounded-sm lg:col-span-2 overflow-hidden">
-          <CardContent className="p-6 space-y-6">
-            {/* Top metrics row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Main spending card */}
+        <Card className="card-glass rounded-xl lg:col-span-2 overflow-hidden border-border/50">
+          <CardContent className="p-5 sm:p-6 space-y-5">
+            {/* Top metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Spent</p>
-                <p className={`text-xl sm:text-2xl font-mono font-bold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Total spent</p>
+                <p className={`mono-data text-3xl font-bold ${isOverBudget ? 'text-destructive' : 'text-foreground'}`}>
                   {totalSpent.toFixed(2)}
                 </p>
               </div>
               {budget > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Remaining</p>
-                  <p className={`text-xl sm:text-2xl font-mono font-bold ${isOverBudget ? 'text-destructive' : 'text-primary'}`}>
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Remaining</p>
+                  <p className={`mono-data text-3xl font-bold ${isOverBudget ? 'text-destructive' : 'text-primary'}`}
+                    style={!isOverBudget ? { textShadow: '0 0 16px rgba(240,112,64,0.3)' } : {}}>
                     {isOverBudget ? `-${(totalSpent - budget).toFixed(2)}` : remaining.toFixed(2)}
                   </p>
                 </div>
               )}
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Daily Avg</p>
-                <p className="text-xl sm:text-2xl font-mono font-bold text-foreground">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Daily avg</p>
+                <p className="mono-data text-3xl font-bold text-foreground">
                   {dailyAvgSpend.toFixed(2)}
                 </p>
               </div>
             </div>
 
-            {/* Budget progress bar */}
+            {/* Budget progress */}
             {budget > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {isOverBudget ? (
-                      <AlertTriangle className="w-4 h-4 text-destructive" />
+                      <TriangleAlert className="w-3.5 h-3.5 text-destructive" />
                     ) : budgetPct >= 75 ? (
-                      <TrendingUp className="w-4 h-4 text-yellow-500" />
+                      <TrendingUp className="w-3.5 h-3.5 text-yellow-500" />
                     ) : (
-                      <TrendingDown className="w-4 h-4 text-primary" />
+                      <TrendingDown className="w-3.5 h-3.5 text-primary" />
                     )}
-                    <span className="text-xs font-mono uppercase tracking-widest">
-                      {isOverBudget ? 'Over Budget' : `${budgetPct}% Used`}
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      {isOverBudget ? 'Over budget' : `${budgetPct}% of budget`}
                     </span>
                   </div>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    Budget: {budget.toFixed(2)}
-                  </span>
+                  <span className="mono-data text-[11px] text-muted-foreground">{budget.toFixed(2)}</span>
                 </div>
 
-                {/* Progress bar */}
-                <div className="relative h-3 rounded-full bg-[#111] border border-border/50 overflow-hidden">
+                <div className="relative h-2 rounded-full bg-muted border border-border/40 overflow-hidden">
                   <div
-                    className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${getBarColor(budgetPct)} ${isOverBudget ? 'animate-pulse' : ''}`}
+                    className={`absolute inset-y-0 left-0 transition-all duration-700 rounded-full ${getBarClasses(budgetPct)} ${isOverBudget ? 'animate-pulse' : ''}`}
                     style={{ width: `${Math.min(budgetPct, 100)}%` }}
                   />
-                  {/* 75% marker */}
-                  <div className="absolute top-0 bottom-0 left-[75%] w-px bg-yellow-500/50" />
+                  <div className="absolute top-0 bottom-0 left-[75%] w-px bg-yellow-500/25" />
                 </div>
 
-                {/* Projected */}
                 {dayOfMonth < daysInMonth && (
-                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest text-center">
-                    Projected month-end: <span className={`font-bold ${projectedMonthly > budget ? 'text-destructive' : 'text-primary'}`}>{projectedMonthly.toFixed(2)}</span>
-                    {projectedMonthly > budget && ' ⚠ Exceeds budget'}
+                  <p className="text-[11px] text-muted-foreground text-center font-medium">
+                    On pace for:{' '}
+                    <span className={`font-bold mono-data ${projectedMonthly > budget ? 'text-destructive' : 'text-primary'}`}>
+                      {projectedMonthly.toFixed(2)}
+                    </span>
+                    {projectedMonthly > budget && ' — over budget'}
                   </p>
                 )}
               </div>
             )}
 
-            {/* No budget set CTA */}
+            {/* No budget CTA */}
             {budget === 0 && (
-              <div className="border border-dashed border-border/50 rounded-sm p-4 text-center">
-                <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">No budget configured</p>
-                <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-widest rounded-sm border-primary/30 text-primary hover:bg-primary/10" onClick={() => setBudgetOpen(true)}>
-                  Set Monthly Budget
+              <div className="border border-dashed border-primary/25 rounded-xl p-6 text-center animate-float">
+                <div className="flex justify-center mb-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Crosshair className="w-4.5 h-4.5 text-primary" style={{ width: 18, height: 18 }} />
+                  </div>
+                </div>
+                <p className="text-xs font-semibold text-muted-foreground mb-3 font-light">Set a monthly budget to track your spending</p>
+                <Button variant="outline" size="sm" className="h-7 text-xs font-semibold rounded-lg border-primary/30 text-primary hover:bg-primary/10" onClick={() => setBudgetOpen(true)}>
+                  Set budget
                 </Button>
               </div>
             )}
@@ -235,27 +230,27 @@ export function SpendingAnalytics() {
         </Card>
 
         {/* Category breakdown */}
-        <Card className="card-glass rounded-sm overflow-hidden">
-          <CardHeader className="border-b border-border/40 bg-black/20 p-4">
-            <CardTitle className="text-[10px] font-bold uppercase tracking-widest">By Category</CardTitle>
+        <Card className="card-glass rounded-xl overflow-hidden border-border/50">
+          <CardHeader className="border-b border-border/40 bg-black/15 px-5 py-3.5">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">By category</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 space-y-3">
+          <CardContent className="p-5 space-y-3.5">
             {categoryBreakdown.length === 0 ? (
-              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest text-center py-4">No spending data</p>
+              <p className="text-xs text-muted-foreground text-center py-4 font-light">No spending data yet</p>
             ) : (
               categoryBreakdown.slice(0, 6).map((cat, i) => (
                 <div key={cat.category} className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider">{cat.category}</span>
+                    <span className="text-xs font-semibold text-foreground">{cat.category}</span>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="font-mono text-[9px] border-border rounded-sm px-1 py-0">{cat.pct}%</Badge>
-                      <span className="text-xs font-mono text-foreground">{cat.amount.toFixed(2)}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">{cat.pct}%</span>
+                      <span className="mono-data text-xs text-foreground font-bold">{cat.amount.toFixed(2)}</span>
                     </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-[#111] border border-border/30 overflow-hidden">
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${categoryColors[i % categoryColors.length]}`}
-                      style={{ width: `${cat.pct}%` }}
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${cat.pct}%`, background: categoryColors[i % categoryColors.length] }}
                     />
                   </div>
                 </div>

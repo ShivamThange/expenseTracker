@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Mail, TriangleAlert } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
@@ -39,59 +40,70 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="text-center w-full">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Check your email</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          If an account with that email exists, we have sent a password reset link.
-        </p>
+      <div className="text-center w-full animate-scale-in space-y-5">
+        <div className="flex justify-center">
+          <div className="w-14 h-14 rounded-xl bg-secondary/10 border border-secondary/25 flex items-center justify-center">
+            <Mail className="w-7 h-7 text-secondary" />
+          </div>
+        </div>
+        <div>
+          <h1 className="font-display italic font-black text-2xl text-foreground tracking-tight mb-1">Check your inbox</h1>
+          <p className="text-muted-foreground text-sm font-light">
+            If that email exists, a reset link is on its way.
+          </p>
+        </div>
         <Link
           href="/login"
-          className="inline-block px-6 py-2 bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white rounded-lg font-medium transition-colors"
+          className="inline-block px-7 py-3 border border-border/60 hover:border-border text-foreground rounded-lg font-semibold text-sm transition-all active:scale-[0.98] hover:bg-white/4"
         >
-          Return to Login
+          Back to sign in
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Forgot Password</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-          Enter your email to receive a password reset link
+    <div className="w-full space-y-6">
+      <div className="mb-6">
+        <h1 className="font-display italic font-black text-2xl text-foreground tracking-tight mb-1">
+          Reset password
+        </h1>
+        <p className="text-sm text-muted-foreground font-light">
+          We'll send a link to your email
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-lg">
+          <div className="p-3 text-xs text-destructive bg-destructive/8 border border-destructive/20 rounded-lg flex items-center gap-2.5">
+            <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
             {error}
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Email address</label>
           <input
             name="email"
             type="email"
             required
-            className="w-full mt-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder="you@example.com"
+            className="w-full px-4 py-3 border border-border rounded-lg bg-[var(--surface-input)] text-foreground text-sm transition-all duration-200 input-glow placeholder:text-muted-foreground/40 focus:outline-none"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 px-4 bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black text-white rounded-lg font-medium shadow transition-colors disabled:opacity-50 mt-4"
+          className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 mt-2 neon-glow-lg"
         >
-          {loading ? 'Sending link...' : 'Send reset link'}
+          {loading ? 'Sending…' : 'Send reset link'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-        Remember your password?{' '}
-        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500 hover:underline">
+      <p className="text-center text-xs text-muted-foreground pt-2">
+        Remember it?{' '}
+        <Link href="/login" className="font-bold text-primary hover:text-primary/80 transition-colors">
           Sign in
         </Link>
       </p>

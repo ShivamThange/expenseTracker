@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { History, Plus, ArrowUpRight, Pencil } from 'lucide-react';
+import { ScrollText, Plus, MoveUpRight, PenLine } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type SplitDTO = { userId: string; amount: number };
@@ -30,7 +30,7 @@ type ExpenseDTO = {
 
 const baseCategories = ['General', 'Food', 'Transport', 'Accommodation', 'Entertainment', 'Shopping', 'Utilities'];
 
-export default function HistoryPage() {
+export default function ScrollTextPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [addPersonalOpen, setAddPersonalOpen] = useState(false);
@@ -81,10 +81,7 @@ export default function HistoryPage() {
 
   const handleAddCategory = () => {
     const next = newCategoryInput.trim();
-    if (!next) {
-      toast.error('Category name is required');
-      return;
-    }
+    if (!next) { toast.error('Category name is required'); return; }
 
     const existing = categoryOptions.find((category) => category.toLowerCase() === next.toLowerCase());
     if (existing) {
@@ -105,12 +102,8 @@ export default function HistoryPage() {
       toast.error('Invalid parameters detected');
       return null;
     }
-
     const userId = session?.user?.id;
-    if (!userId) {
-      toast.error('Session not found');
-      return null;
-    }
+    if (!userId) { toast.error('Session not found'); return null; }
 
     return {
       description: personalForm.description,
@@ -124,189 +117,156 @@ export default function HistoryPage() {
   const handleCreatePersonal = () => {
     const payload = buildPersonalPayload();
     if (!payload) return;
-
-    addPersonalExpense.mutate({
-      groupId: '', 
-      ...payload,
-      date: new Date().toISOString(),
-    });
+    addPersonalExpense.mutate({ groupId: '', ...payload, date: new Date().toISOString() });
   };
 
   const handleUpdatePersonal = () => {
     if (!editingExpenseId) return;
     const payload = buildPersonalPayload();
     if (!payload) return;
-
-    updatePersonalExpense.mutate({
-      expenseId: editingExpenseId,
-      body: payload,
-    });
+    updatePersonalExpense.mutate({ expenseId: editingExpenseId, body: payload });
   };
 
   const openEditPersonal = (expense: ExpenseDTO) => {
     setEditingExpenseId(expense.id);
-    setPersonalForm({
-      description: expense.description,
-      amount: String(expense.amount),
-      category: expense.category,
-    });
+    setPersonalForm({ description: expense.description, amount: String(expense.amount), category: expense.category });
     setEditPersonalOpen(true);
   };
 
   const expenses = expData?.expenses ?? [];
 
+  const expenseFormFields = (
+    <div className="space-y-4 pt-2">
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Description *</Label>
+        <Input value={personalForm.description} onChange={(e) => setPersonalForm({ ...personalForm, description: e.target.value })} className="bg-[var(--surface-input)] rounded-lg input-glow border-border" />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Amount *</Label>
+        <Input type="number" min="0.01" step="0.01" value={personalForm.amount} onChange={(e) => setPersonalForm({ ...personalForm, amount: e.target.value })} className="mono-data text-right bg-[var(--surface-input)] rounded-lg input-glow border-border" />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Category</Label>
+        <Select value={personalForm.category} onValueChange={(v) => setPersonalForm({ ...personalForm, category: v ?? '' })}>
+          <SelectTrigger className="bg-[var(--surface-input)] rounded-lg border-border"><SelectValue /></SelectTrigger>
+          <SelectContent className="bg-card border-border/50 rounded-xl">
+            {categoryOptions.map((c) => (
+              <SelectItem key={c} value={c} className="font-mono text-xs">{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2 mt-2">
+          <Input
+            placeholder="Add category"
+            value={newCategoryInput}
+            onChange={(e) => setNewCategoryInput(e.target.value)}
+            className="bg-[var(--surface-input)] rounded-lg input-glow border-border"
+          />
+          <Button type="button" variant="outline" className="rounded-lg text-[10px] font-bold px-3 border-border/60" onClick={handleAddCategory}>
+            Add
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-7">
+      <div className="flex items-end justify-between gap-4 flex-wrap pt-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">Global Log</h1>
-          <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Unified Transaction History</p>
+          <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1.5">Personal & group</p>
+          <h1 className="font-display italic font-black text-3xl sm:text-4xl tracking-tight text-foreground">All Transactions</h1>
+          <p className="text-muted-foreground text-sm mt-1.5 font-light">View all your expenses</p>
         </div>
         <Dialog open={addPersonalOpen} onOpenChange={(open) => {
           setAddPersonalOpen(open);
           if (!open) resetPersonalEditor();
         }}>
-          <DialogTrigger render={<Button className="neon-glow rounded-sm font-bold uppercase tracking-widest text-xs h-10 px-6"><Plus className="w-4 h-4 mr-2" /> Private TX</Button>} />
-          <DialogContent className="sm:max-w-md bg-[#0a0a0a] border border-border/50 rounded-sm">
-            <DialogHeader><DialogTitle className="font-black uppercase tracking-widest">Inject Private Record</DialogTitle></DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriptor *</Label>
-                <Input value={personalForm.description} onChange={(e) => setPersonalForm({ ...personalForm, description: e.target.value })} className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Value *</Label>
-                <Input type="number" min="0.01" step="0.01" value={personalForm.amount} onChange={(e) => setPersonalForm({ ...personalForm, amount: e.target.value })} className="font-mono text-right bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class</Label>
-                <Select value={personalForm.category} onValueChange={(v) => setPersonalForm({ ...personalForm, category: v ?? '' })}>
-                  <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[#111] border-border/50">
-                    {categoryOptions.map((c) => (
-                      <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Add category"
-                    value={newCategoryInput}
-                    onChange={(e) => setNewCategoryInput(e.target.value)}
-                    className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                  <Button type="button" variant="outline" className="rounded-sm uppercase tracking-widest text-[10px] font-bold" onClick={handleAddCategory}>
-                    Add
-                  </Button>
-                </div>
-              </div>
-              <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-2" onClick={handleCreatePersonal} disabled={addPersonalExpense.isPending}>
-                {addPersonalExpense.isPending ? 'Committing...' : 'Commit Record'}
-              </Button>
-            </div>
+          <DialogTrigger render={
+            <Button className="neon-glow rounded-lg font-bold text-xs h-9 px-5 gap-2">
+              <Plus className="w-3.5 h-3.5" /> Add expense
+            </Button>
+          } />
+          <DialogContent className="sm:max-w-md bg-card border-border/50 rounded-xl">
+            <DialogHeader>
+              <DialogTitle className="font-display italic font-black text-xl tracking-tight">Add expense</DialogTitle>
+            </DialogHeader>
+            {expenseFormFields}
+            <Button className="w-full neon-glow rounded-lg font-bold mt-2" onClick={handleCreatePersonal} disabled={addPersonalExpense.isPending}>
+              {addPersonalExpense.isPending ? 'Adding…' : 'Add expense'}
+            </Button>
           </DialogContent>
         </Dialog>
         <Dialog open={editPersonalOpen} onOpenChange={(open) => {
           setEditPersonalOpen(open);
           if (!open) resetPersonalEditor();
         }}>
-          <DialogContent className="sm:max-w-md bg-[#0a0a0a] border border-border/50 rounded-sm">
-            <DialogHeader><DialogTitle className="font-black uppercase tracking-widest">Update Private Record</DialogTitle></DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descriptor *</Label>
-                <Input value={personalForm.description} onChange={(e) => setPersonalForm({ ...personalForm, description: e.target.value })} className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Value *</Label>
-                <Input type="number" min="0.01" step="0.01" value={personalForm.amount} onChange={(e) => setPersonalForm({ ...personalForm, amount: e.target.value })} className="font-mono text-right bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class</Label>
-                <Select value={personalForm.category} onValueChange={(v) => setPersonalForm({ ...personalForm, category: v ?? '' })}>
-                  <SelectTrigger className="font-mono bg-[#111] rounded-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-[#111] border-border/50">
-                    {categoryOptions.map((c) => (
-                      <SelectItem key={c} value={c} className="font-mono text-xs focus:bg-white/5">{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Add category"
-                    value={newCategoryInput}
-                    onChange={(e) => setNewCategoryInput(e.target.value)}
-                    className="font-mono bg-[#111] rounded-sm focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                  <Button type="button" variant="outline" className="rounded-sm uppercase tracking-widest text-[10px] font-bold" onClick={handleAddCategory}>
-                    Add
-                  </Button>
-                </div>
-              </div>
-              <Button className="w-full neon-glow rounded-sm font-bold uppercase tracking-widest mt-2" onClick={handleUpdatePersonal} disabled={updatePersonalExpense.isPending}>
-                {updatePersonalExpense.isPending ? 'Updating...' : 'Update Record'}
-              </Button>
-            </div>
+          <DialogContent className="sm:max-w-md bg-card border-border/50 rounded-xl">
+            <DialogHeader>
+              <DialogTitle className="font-display italic font-black text-xl tracking-tight">Edit expense</DialogTitle>
+            </DialogHeader>
+            {expenseFormFields}
+            <Button className="w-full neon-glow rounded-lg font-bold mt-2" onClick={handleUpdatePersonal} disabled={updatePersonalExpense.isPending}>
+              {updatePersonalExpense.isPending ? 'Updating…' : 'Save changes'}
+            </Button>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {isLoading ? (
-          <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-20 bg-muted rounded-sm" />)}</div>
+          <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-20 bg-muted rounded-xl" />)}</div>
         ) : expenses.length === 0 ? (
-          <Card className="border-dashed border-border/50 bg-transparent rounded-sm">
+          <Card className="border-dashed border-border/50 bg-transparent rounded-xl">
             <CardContent className="py-16 text-center">
-              <div className="w-12 h-12 mx-auto border border-dashed border-muted-foreground/30 flex items-center justify-center rounded-sm mb-4">
-                 <History className="text-muted-foreground w-6 h-6" />
+              <div className="w-12 h-12 mx-auto border border-dashed border-primary/30 flex items-center justify-center rounded-xl mb-4">
+                 <ScrollText className="text-muted-foreground/60 w-5 h-5" />
               </div>
-              <p className="font-bold uppercase tracking-wider text-sm mb-2">Log Empty</p>
-              <p className="text-muted-foreground font-mono text-[10px] uppercase tracking-widest">No historical data found</p>
+              <p className="font-bold text-sm mb-1.5">No expenses yet</p>
+              <p className="text-muted-foreground text-[11px] font-light">Add an expense to get started</p>
             </CardContent>
           </Card>
         ) : (
-          <Card className="card-glass rounded-sm overflow-hidden">
+          <Card className="card-glass rounded-xl overflow-hidden border-border/50">
             <CardContent className="p-0">
               {expenses.map((exp, i) => {
                 const canEditPersonal = exp.groupName === 'Personal' && exp.payerId === session?.user?.id;
                 return (
-                <div key={exp.id} className="group hover:bg-white/5 transition-colors">
+                <div key={exp.id} className="group hover:bg-white/3 transition-colors">
                   {i > 0 && <Separator className="bg-border/40" />}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 gap-4">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-sm bg-[#111] border border-border/50 flex flex-shrink-0 items-center justify-center group-hover:border-primary/50 transition-colors mt-0.5">
-                        <ArrowUpRight className="w-4 h-4 text-primary" />
+                      <div className="w-9 h-9 rounded-lg bg-primary/8 border border-primary/15 flex flex-shrink-0 items-center justify-center group-hover:border-primary/30 transition-colors mt-0.5">
+                        <MoveUpRight className="w-4 h-4 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-sm uppercase tracking-wider text-foreground mb-1">{exp.description}</p>
-                        <div className="flex items-center gap-3 flex-wrap">
-                           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{new Date(exp.date).toISOString().split('T')[0]}</span>
-                           <Badge variant="outline" className="text-[9px] uppercase tracking-widest font-mono border-border text-muted-foreground bg-black/20 rounded-sm px-1.5 py-0.5">{exp.category}</Badge>
+                        <p className="font-semibold text-sm text-foreground mb-1">{exp.description}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                           <span className="text-[10px] text-muted-foreground font-medium">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                           <Badge className="text-[9px] border-border/50 text-muted-foreground bg-white/3 rounded-full px-2 py-0.5 font-medium">{exp.category}</Badge>
                            {exp.groupName === 'Personal' ? (
-                              <Badge variant="outline" className="text-[9px] uppercase tracking-widest font-mono border-secondary text-secondary bg-secondary/5 rounded-sm px-1.5 py-0.5">PRIVATE</Badge>
+                              <Badge className="badge-azure text-[9px] rounded-full px-2 py-0.5 font-semibold">Personal</Badge>
                            ) : (
-                              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center">
-                                NET <ArrowUpRight className="w-3 h-3 mx-1 opacity-50" /> <span className="font-bold text-foreground inline-block truncate max-w-[120px]">{exp.groupName}</span>
-                              </span>
+                              <span className="text-[10px] text-muted-foreground">{exp.groupName}</span>
                            )}
                         </div>
                       </div>
                     </div>
-                    <div className="text-left sm:text-right pl-14 sm:pl-0">
-                       <span className="font-mono font-bold text-foreground block drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]">
+                    <div className="text-left sm:text-right pl-14 sm:pl-0 shrink-0">
+                       <span className="mono-data font-bold text-foreground block text-sm">
                          {exp.amount.toFixed(2)}
                        </span>
-                       <div className="text-[10px] font-mono uppercase tracking-widest text-primary/70 pt-1">
-                         {exp.payerId === session?.user?.id ? 'SRC: Self' : 'SRC: External'}
+                       <div className="text-[10px] text-primary/70 pt-0.5 font-medium">
+                         {exp.payerId === session?.user?.id ? 'You paid' : 'Others paid'}
                        </div>
                        {canEditPersonal && (
                          <Button
                            variant="ghost"
                            size="sm"
-                           className="mt-2 h-7 px-2 text-[10px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground"
+                           className="mt-1.5 h-6 px-2 text-[10px] font-semibold text-muted-foreground hover:text-foreground gap-1 rounded-md"
                            onClick={() => openEditPersonal(exp)}
                          >
-                           <Pencil className="w-3 h-3 mr-1" /> Edit
+                           <PenLine className="w-3 h-3" /> Edit
                          </Button>
                        )}
                     </div>

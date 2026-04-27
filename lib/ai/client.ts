@@ -71,6 +71,8 @@ export interface GenerateOptions {
   maxOutputTokens?: number;
   /** Response mimetype (e.g. application/json) */
   responseMimeType?: string;
+  /** Optional JSON schema for structured responses */
+  responseJsonSchema?: unknown;
 }
 
 export interface GenerateResult {
@@ -100,6 +102,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateRespon
     temperature = 1.0,
     maxOutputTokens = 1024,
     responseMimeType,
+    responseJsonSchema,
   } = options;
 
   // Check API key
@@ -137,6 +140,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateRespon
         maxOutputTokens,
         ...(systemInstruction ? { systemInstruction } : {}),
         ...(responseMimeType ? { responseMimeType } : {}),
+        ...(responseJsonSchema ? { responseJsonSchema } : {}),
       },
     });
 

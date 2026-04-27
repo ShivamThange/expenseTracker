@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileText, ArrowRight } from 'lucide-react';
+import { Receipt, ArrowRight } from 'lucide-react';
 
 type Group = { id: string; name: string; currency: string };
 type Expense = { id: string; description: string; amount: number; category: string; date: string; payerId: string };
@@ -22,23 +22,24 @@ export default function ExpensesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">Global Ledger</h1>
-        <p className="text-muted-foreground font-mono text-sm mt-2 uppercase tracking-widest">Aggregated network transactions</p>
+      <div className="pt-2">
+        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1.5">Across all groups</p>
+        <h1 className="font-display italic font-black text-3xl sm:text-4xl tracking-tight text-foreground">All Expenses</h1>
+        <p className="text-muted-foreground text-sm mt-1.5 font-light">See all expenses across your groups</p>
       </div>
 
       {loadingGroups ? (
-        <div className="space-y-6">{[1,2,3].map((i) => <Skeleton key={i} className="h-24 bg-muted rounded-sm" />)}</div>
+        <div className="space-y-6">{[1,2,3].map((i) => <Skeleton key={i} className="h-24 bg-muted rounded-xl" />)}</div>
       ) : groups.length === 0 ? (
-        <Card className="border-dashed border-border/50 bg-transparent rounded-sm">
+        <Card className="border-dashed border-border/50 bg-transparent rounded-xl">
           <CardContent className="py-16 text-center">
-            <div className="w-16 h-16 mx-auto border border-dashed border-muted-foreground/30 flex items-center justify-center rounded-sm mb-6">
-               <FileText className="text-muted-foreground w-6 h-6" />
+            <div className="w-14 h-14 mx-auto border border-dashed border-primary/30 flex items-center justify-center rounded-xl mb-5">
+               <Receipt className="text-muted-foreground/60 w-6 h-6" />
             </div>
-            <p className="font-bold uppercase tracking-wider text-sm mb-2">No Transactions Detected</p>
-            <p className="text-muted-foreground font-mono text-xs mt-1 mb-8 uppercase tracking-widest">Deploy a network to begin tracking</p>
-            <Button asChild className="neon-glow rounded-sm font-bold uppercase tracking-widest text-xs h-10 px-6">
-              <Link href="/dashboard/groups">Initialize Network</Link>
+            <p className="font-bold text-sm mb-1.5">No expenses yet</p>
+            <p className="text-muted-foreground text-xs mt-1 mb-7 font-light">Create a group to start tracking expenses</p>
+            <Button asChild className="neon-glow rounded-lg font-bold text-xs h-9 px-6">
+              <Link href="/dashboard/groups">Create a group</Link>
             </Button>
           </CardContent>
         </Card>
@@ -65,38 +66,38 @@ function GroupExpenses({ group }: { group: Group }) {
     <div>
       <div className="flex flex-wrap items-center gap-2 justify-between mb-4">
         <div className="flex items-center gap-3">
-          <Link href={`/dashboard/groups/${group.id}`} className="font-bold uppercase tracking-wider text-foreground hover:text-primary transition-colors flex items-center group">
+          <Link href={`/dashboard/groups/${group.id}`} className="font-bold text-sm uppercase tracking-widest text-foreground hover:text-primary transition-colors flex items-center group">
             {group.name}
-            <ArrowRight className="w-4 h-4 ml-2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
+            <ArrowRight className="w-3.5 h-3.5 ml-2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
           </Link>
-          <Badge variant="outline" className="font-mono text-[10px] border-secondary text-secondary bg-secondary/5 rounded-sm px-1.5 py-0">
+          <Badge className="badge-azure font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
             {group.currency}
           </Badge>
         </div>
       </div>
       {isLoading ? (
-        <Skeleton className="h-24 bg-muted rounded-sm" />
+        <Skeleton className="h-24 bg-muted rounded-xl" />
       ) : expenses.length === 0 ? (
-        <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest py-2">Ledger Empty.</p>
+        <p className="text-xs text-muted-foreground py-2 font-light">No expenses yet</p>
       ) : (
-        <Card className="card-glass rounded-sm overflow-hidden">
+        <Card className="card-glass rounded-xl overflow-hidden border-border/50">
           <CardContent className="p-0">
             {expenses.map((exp, i) => (
-              <div key={exp.id} className="group hover:bg-white/5 transition-colors">
+              <div key={exp.id} className="group hover:bg-white/3 transition-colors">
                 {i > 0 && <Separator className="bg-border/40" />}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-sm bg-[#111] border border-border/50 flex items-center justify-center group-hover:border-primary/50 transition-colors">
-                      <FileText className="w-4 h-4 text-primary" />
+                    <div className="w-9 h-9 rounded-lg bg-primary/8 border border-primary/15 flex items-center justify-center group-hover:border-primary/30 transition-colors shrink-0">
+                      <Receipt className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm uppercase tracking-wider text-foreground">{exp.description}</p>
-                      <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-1">
-                        {exp.category} <span className="text-primary/50 mx-1">|</span> {new Date(exp.date).toISOString().split('T')[0]}
+                      <p className="font-semibold text-sm text-foreground">{exp.description}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {exp.category} <span className="text-primary/30 mx-1">·</span> {new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                   </div>
-                  <p className="font-mono font-bold text-foreground drop-shadow-[0_0_5px_rgba(255,255,255,0.2)] pl-14 sm:pl-0 text-left sm:text-right">
+                  <p className="mono-data font-bold text-foreground pl-14 sm:pl-0 text-left sm:text-right text-sm">
                     {group.currency} {exp.amount.toFixed(2)}
                   </p>
                 </div>
