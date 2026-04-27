@@ -326,49 +326,72 @@ function buildFallbackResponseFromRawText(rawText: string, members: MemberRef[])
 }
 
 function buildSystemInstruction(): string {
-  return `You are an expert bill parser and cost allocator. Your job is to read a receipt image and assign each line item to the correct person based on the user's description.
+  return `You are an expert bill parser and cost allocator. Read the receipt image, interpret the user's description of who had what, then calculate each person's exact share.
 
-## STRICT RULES
+## KEYWORD RULES — read these carefully before calculating
 
-1. **User instructions are the highest priority.** If the user says "Alex had the burger, Sam had the salad", you MUST assign those specific items to those specific people — do NOT split them equally.
-2. **Unequal splits are expected and correct** when the user describes who ordered what.
-3. **Always prorate overhead** (tax, tip, service charge, delivery fee) proportionally: each person's overhead = (their food subtotal / total food subtotal) × total overhead.
-4. **Unmentioned items** that no one claimed: split equally among all members.
-5. **The sum of all memberShares.amount MUST equal the bill total exactly.** Adjust the first member by any rounding difference.
-6. Only use member IDs and names from the provided members list — never invent members.
-7. Return ONLY a raw JSON object. No markdown, no code fences, no explanation.
+- **"X had only Y"** → X gets item Y exclusively. X does NOT share any other food items. Others split remaining items among themselves.
+- **"X had extra Y"** or **"Y was only for X"** → Y is assigned solely to X on top of their share of everything else. Others do not pay for Y.
+- **"everything else shared"** or **"rest was shared"** → All unassigned items split equally among ALL members.
+- **"X had Y, everything else shared"** → Y goes to X; every other item splits equally among all members (including X unless stated otherwise).
+- **No instructions given** → split entire bill equally among all members.
 
-## ALGORITHM
+## CALCULATION ALGORITHM
 
-Step 1 — Extract all line items and prices from the receipt.
-Step 2 — Separate overhead lines (tax, tip, gratuity, fees) from food/item lines.
-Step 3 — Read the user's message and map each mentioned item to the person who had it.
-Step 4 — For each person: sum their item prices, then add (their subtotal / total food subtotal) × total overhead.
-Step 5 — Any unclaimed food items: add their cost divided equally to each member's share.
-Step 6 — Verify the total matches; adjust first member for rounding.
-Step 7 — Output the JSON.
+1. List every line item and its price from the receipt.
+2. Separate overhead (tax, tip, service charge, delivery fee) from food items.
+3. Apply keyword rules above to assign each food item to one person or to "shared".
+4. For each person: food_total = their exclusive items + (their share of shared items).
+5. Overhead is prorated: each person's overhead = (their food_total / sum_of_all_food_totals) × total_overhead.
+6. Each person's final amount = food_total + overhead share.
+7. Verify sum equals bill total. Adjust first member's amount for any rounding gap.
+8. Think through steps 1-7 explicitly, then output the JSON.
 
-## EXAMPLE
+## EXAMPLES
 
-Receipt: Burger $15, Salad $10, Tax $2.50, Total $27.50
-User says: "Alice had the burger, Bob had the salad"
-Food subtotal = $25. Overhead = $2.50.
-Alice: $15 + (15/25 × 2.50) = $15 + $1.50 = $16.50
-Bob: $10 + (10/25 × 2.50) = $10 + $1.00 = $11.00
-Total: $27.50 ✓`;
+### Example A — "only" keyword
+Receipt: Burger $15, Pasta $12, Fries $5, Tax $3.20, Total $35.20
+Members: Alice, Bob
+User: "Alice had only the burger, everything else was shared"
+→ Alice exclusive: Burger $15. Shared: Pasta $12, Fries $5 → each gets $8.50.
+→ Alice food: $15 + $8.50 = $23.50. Bob food: $8.50.
+→ Food subtotal: $32. Alice overhead: (23.50/32) × 3.20 = $2.35. Bob: (8.50/32) × 3.20 = $0.85.
+→ Alice: $23.50 + $2.35 = $25.85. Bob: $8.50 + $0.85 = $9.35. Total: $35.20 ✓
+
+### Example B — "extra" keyword
+Receipt: Pizza $20, Garlic Bread $6, Dessert $8, Tax $3.40, Total $37.40
+Members: Alice, Bob, Charlie
+User: "Dessert was only for Alice, everything else shared"
+→ Shared: Pizza $20, Garlic Bread $6 → each gets $8.67 (Alice gets $8.66 after rounding).
+→ Alice exclusive: Dessert $8. Alice food: $8.66 + $8 = $16.66. Bob food: $8.67. Charlie food: $8.67.
+→ Food subtotal: $34. Alice overhead: (16.66/34) × 3.40 = $1.67. Bob: (8.67/34) × 3.40 = $0.87. Charlie: $0.87. Rounding: adjust Alice to $1.69 so overhead sums to $3.40 → wait, recalc: 1.67+0.87+0.87 = $3.41, adjust Alice to $1.66. Alice: $16.66+$1.66=$18.32. Bob: $8.67+$0.87=$9.54. Charlie: $9.54. Total: $37.40 ✓
+
+## OUTPUT FORMAT
+
+After your reasoning, output ONE JSON object:
+{
+  "description": "short bill description",
+  "amount": <total as number>,
+  "category": "<one of: General, Food, Transport, Accommodation, Entertainment, Shopping, Utilities>",
+  "memberShares": [
+    { "userId": "<exact id from members list>", "userName": "<exact name>", "amount": <number> }
+  ]
+}
+
+No markdown fences. No text after the JSON.`;
 }
 
 function buildPrompt(memberRefs: MemberRef[], message: string | undefined, malformedResponse?: string): string {
   const userInstruction = message?.trim()
-    ? `USER INSTRUCTIONS (follow these exactly to assign items to people):\n"${message.trim()}"`
+    ? `USER INSTRUCTIONS — apply keyword rules from the system prompt exactly:\n"${message.trim()}"`
     : `USER INSTRUCTIONS: None provided. Split the entire total equally among all members.`;
 
   const basePrompt = `${userInstruction}
 
-MEMBERS (use only these IDs and names):
+MEMBERS (use ONLY these ids and names — do not invent others):
 ${JSON.stringify(memberRefs, null, 2)}
 
-Now parse the receipt image and return a JSON object with the fields: description, amount, category, memberShares.`;
+Work through the algorithm step by step, then output the JSON.`;
 
   if (!malformedResponse) {
     return basePrompt;
@@ -379,7 +402,7 @@ Now parse the receipt image and return a JSON object with the fields: descriptio
 IMPORTANT: Your previous response was malformed JSON:
 ${malformedResponse}
 
-Return one complete, valid JSON object only. No truncation.`;
+Redo the calculation and return one complete, valid JSON object only. No truncation.`;
 }
 
 async function generateBillAllocation(
@@ -394,11 +417,10 @@ async function generateBillAllocation(
     prompt: buildPrompt(memberRefs, message, malformedResponse),
     imageParts: [{ inlineData: { data: imageBase64, mimeType } }],
     timeoutMs: 45000,
-    // Do NOT use responseJsonSchema here — Gemini's constrained decoding mode
-    // overrides instruction-following and produces equal splits regardless of prompt.
-    responseMimeType: 'application/json',
-    temperature: 0.2,
-    maxOutputTokens: 2048,
+    // No responseMimeType/responseJsonSchema — constrained decoding prevents the model
+    // from reasoning through complex splits. parseAndNormalize extracts JSON from free text.
+    temperature: 0.4,
+    maxOutputTokens: 3000,
   });
 }
 
