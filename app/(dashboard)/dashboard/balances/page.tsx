@@ -13,6 +13,18 @@ import { toast } from 'sonner';
 import { Suspense } from 'react';
 import { ArrowLeftRight, TriangleAlert, BadgeCheck } from 'lucide-react';
 
+// Formats an amount in INR. If the source currency differs, also shows the original.
+function formatAmount(amount: number, groupCurrency: string, fxRate: number | null) {
+  if (groupCurrency === 'INR' || !fxRate) {
+    return { primary: `₹${amount.toFixed(2)}`, secondary: null };
+  }
+  const inr = amount * fxRate;
+  return {
+    primary: `₹${inr.toFixed(2)}`,
+    secondary: `${groupCurrency} ${amount.toFixed(2)}`,
+  };
+}
+
 type Settlement = { from: string; to: string; amount: number };
 type BalanceEntry = { userId: string; balance: number };
 type BalancesResponse = {
@@ -52,6 +64,19 @@ function BalancesContent() {
     queryFn: () => fetch(`/api/groups/${selectedGroup!.id}/balances`).then((r) => r.json()),
     enabled: !!selectedGroup?.id,
   });
+
+  const groupCurrency = balancesData?.currency ?? selectedGroup?.currency ?? 'INR';
+  const needsFx = groupCurrency !== 'INR';
+
+  const { data: fxData } = useQuery<{ rates: Record<string, number> }>({
+    queryKey: ['fx', groupCurrency],
+    queryFn: () => fetch(`https://open.er-api.com/v6/latest/${groupCurrency}`).then((r) => r.json()),
+    enabled: needsFx,
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60 * 24,
+  });
+
+  const fxRate = needsFx ? (fxData?.rates?.INR ?? null) : null;
 
   const { data: groupDetail } = useQuery<{ group: { members: { id: string; name: string }[] } }>({
     queryKey: ['group', selectedGroup?.id],
@@ -159,10 +184,17 @@ function BalancesContent() {
                             {entry.userId === session?.user?.id ? <span className="text-muted-foreground font-normal"> (you)</span> : ''}
                           </span>
                         </div>
-                        <span className={`pl-14 sm:pl-0 mono-data font-bold text-base ${isPositive ? 'text-primary' : 'text-destructive'}`}
+                        <div className={`pl-14 sm:pl-0 flex flex-col items-end ${isPositive ? 'text-primary' : 'text-destructive'}`}
                           style={isPositive ? { textShadow: '0 0 12px rgba(240,112,64,0.3)' } : {}}>
-                          {isPositive ? '+' : ''}{balancesData!.currency} {Math.abs(entry.balance).toFixed(2)}
-                        </span>
+                          <span className="mono-data font-bold text-base">
+                            {isPositive ? '+' : '-'}{formatAmount(Math.abs(entry.balance), groupCurrency, fxRate).primary}
+                          </span>
+                          {formatAmount(Math.abs(entry.balance), groupCurrency, fxRate).secondary && (
+                            <span className="text-[10px] text-muted-foreground font-normal" style={{ textShadow: 'none' }}>
+                              {formatAmount(Math.abs(entry.balance), groupCurrency, fxRate).secondary}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -194,9 +226,16 @@ function BalancesContent() {
                         <span className="font-semibold text-foreground">{getName(s.to)}</span>
                       </span>
                       <div className="flex items-center gap-3 border-l border-border/50 pl-4 shrink-0">
-                        <Badge className="badge-azure mono-data font-bold text-[10px] px-2 py-0.5 rounded-full">
-                          {balancesData!.currency} {s.amount.toFixed(2)}
-                        </Badge>
+                        <div className="flex flex-col items-end">
+                          <Badge className="badge-azure mono-data font-bold text-[10px] px-2 py-0.5 rounded-full">
+                            {formatAmount(s.amount, groupCurrency, fxRate).primary}
+                          </Badge>
+                          {formatAmount(s.amount, groupCurrency, fxRate).secondary && (
+                            <span className="text-[10px] text-muted-foreground mt-0.5">
+                              {formatAmount(s.amount, groupCurrency, fxRate).secondary}
+                            </span>
+                          )}
+                        </div>
                         {s.from === session?.user?.id && (
                           <Button size="sm" className="h-7 text-[10px] font-bold rounded-lg neon-glow px-3" disabled={markPaidMutation.isPending}
                             onClick={() => markPaidMutation.mutate({ groupId: selectedGroup!.id, toUserId: s.to, amount: s.amount })}>
@@ -226,7 +265,14 @@ function BalancesContent() {
                       <div className="text-xs leading-relaxed break-words">
                         <span className="font-semibold whitespace-nowrap text-foreground">{getName(s.fromUserId)}</span>
                         <span className="text-muted-foreground mx-2">sent</span>
-                        <span className="mono-data font-bold text-yellow-500 whitespace-nowrap">{balancesData.currency} {s.amount.toFixed(2)}</span>
+                        <span className="mono-data font-bold text-yellow-500 whitespace-nowrap">
+                          {formatAmount(s.amount, groupCurrency, fxRate).primary}
+                          {formatAmount(s.amount, groupCurrency, fxRate).secondary && (
+                            <span className="text-muted-foreground font-normal text-[10px] ml-1">
+                              ({formatAmount(s.amount, groupCurrency, fxRate).secondary})
+                            </span>
+                          )}
+                        </span>
                         <span className="text-muted-foreground mx-2">to</span>
                         <span className="font-semibold whitespace-nowrap text-foreground">{getName(s.toUserId)}</span>
                       </div>

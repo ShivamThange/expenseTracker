@@ -33,7 +33,7 @@ type Group = {
 export default function GroupsPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', currency: 'USD' });
+  const [form, setForm] = useState({ name: '', description: '', currency: 'INR' });
 
   const { data, isLoading } = useQuery<{ groups: Group[] }>({
     queryKey: ['groups'],
@@ -48,7 +48,7 @@ export default function GroupsPage() {
       toast.success('Group created!');
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       setOpen(false);
-      setForm({ name: '', description: '', currency: 'USD' });
+      setForm({ name: '', description: '', currency: 'INR' });
     },
     onError: () => toast.error('Something went wrong'),
   });
@@ -90,7 +90,7 @@ export default function GroupsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border/50 rounded-xl">
-                    {['USD', 'EUR', 'GBP', 'JPY', 'INR', 'AUD', 'CAD', 'SGD'].map((c) => (
+                    {['INR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'SGD'].map((c) => (
                       <SelectItem key={c} value={c} className="font-mono text-xs">{c}</SelectItem>
                     ))}
                   </SelectContent>

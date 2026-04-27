@@ -48,7 +48,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       inviteeEmail: invitation.inviteeEmail,
       groupId: (invitation.groupId as mongoose.Types.ObjectId).toString(),
       groupName: (group as { name: string } | null)?.name ?? 'Unknown Group',
-      groupCurrency: (group as { currency: string } | null)?.currency ?? 'USD',
+      groupCurrency: (group as { currency: string } | null)?.currency ?? 'INR',
       inviterName: (inviter as { name: string } | null)?.name ?? 'Someone',
       expiresAt: invitation.expiresAt.toISOString(),
     });

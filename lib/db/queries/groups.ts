@@ -150,7 +150,7 @@ export async function createGroup(
   const group = await Group.create({
     name: data.name.trim(),
     description: data.description?.trim(),
-    currency: data.currency ?? 'USD',
+    currency: data.currency ?? 'INR',
     ownerId: ownerObjectId,
     memberIds: [ownerObjectId],
   });

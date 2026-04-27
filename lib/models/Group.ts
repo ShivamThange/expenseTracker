@@ -19,7 +19,7 @@ const GroupSchema: Schema<IGroup> = new Schema(
     memberIds: [
       { type: Schema.Types.ObjectId, ref: 'User', required: true }
     ],
-    currency: { type: String, default: 'USD', uppercase: true, trim: true, maxlength: 3 },
+    currency: { type: String, default: 'INR', uppercase: true, trim: true, maxlength: 3 },
     isPersonal: { type: Boolean, default: false },
   },
   {
