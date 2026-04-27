@@ -44,8 +44,8 @@ function BalancesContent() {
   });
 
   const selectedGroup = groupId
-    ? groupsData?.groups.find((g) => g.id === groupId)
-    : groupsData?.groups[0];
+    ? groupsData?.groups?.find((g) => g.id === groupId)
+    : groupsData?.groups?.[0];
 
   const { data: balancesData, isLoading: loadingBalances } = useQuery<BalancesResponse>({
     queryKey: ['balances', selectedGroup?.id],
@@ -95,9 +95,9 @@ function BalancesContent() {
       </div>
 
       {/* Group selector */}
-      {groupsData && groupsData.groups.length > 0 && (
+      {(groupsData?.groups?.length ?? 0) > 0 && (
         <div className="flex gap-2 flex-wrap">
-          {groupsData.groups.map((g) => {
+          {groupsData!.groups.map((g) => {
             const isSelected = g.id === selectedGroup?.id;
             return (
               <a key={g.id} href={`/dashboard/balances?groupId=${g.id}`}>
@@ -221,7 +221,7 @@ function BalancesContent() {
               </CardHeader>
               <CardContent className="p-5">
                 <div className="space-y-3">
-                  {balancesData.recordedSettlements.filter(s => s.status === 'pending').map((s) => (
+                  {balancesData!.recordedSettlements.filter(s => s.status === 'pending').map((s) => (
                     <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-yellow-500/20 bg-background/50">
                       <div className="text-xs leading-relaxed break-words">
                         <span className="font-semibold whitespace-nowrap text-foreground">{getName(s.fromUserId)}</span>
