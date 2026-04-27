@@ -394,8 +394,9 @@ async function generateBillAllocation(
     prompt: buildPrompt(memberRefs, message, malformedResponse),
     imageParts: [{ inlineData: { data: imageBase64, mimeType } }],
     timeoutMs: 45000,
+    // Do NOT use responseJsonSchema here — Gemini's constrained decoding mode
+    // overrides instruction-following and produces equal splits regardless of prompt.
     responseMimeType: 'application/json',
-    responseJsonSchema: scanBillResponseSchema,
     temperature: 0.2,
     maxOutputTokens: 2048,
   });
@@ -432,8 +433,8 @@ export async function POST(req: NextRequest) {
       const parsed = parseAndNormalize(result.text, memberRefs);
       return NextResponse.json(parsed);
     } catch (parseError: unknown) {
-      const message = parseError instanceof Error ? parseError.message : 'Unknown parse error';
-      console.error('[AI Bill Scan] JSON Parse Error:', { message, aiText: result.text });
+      const parseErrorMessage = parseError instanceof Error ? parseError.message : 'Unknown parse error';
+      console.error('[AI Bill Scan] JSON Parse Error:', { parseErrorMessage, aiText: result.text });
 
       const retryResult = await generateBillAllocation(imageBase64, mimeType, memberRefs, message, result.text);
       if (retryResult.success) {
@@ -442,7 +443,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(retriedParsed);
         } catch (retryParseError: unknown) {
           const retryMessage = retryParseError instanceof Error ? retryParseError.message : 'Unknown parse error';
-          console.error('[AI Bill Scan] Retry Parse Error:', { message: retryMessage, aiText: retryResult.text });
+          console.error('[AI Bill Scan] Retry Parse Error:', { retryMessage, aiText: retryResult.text });
 
           const retryFallback = buildFallbackResponseFromRawText(retryResult.text, memberRefs);
           if (retryFallback) {
