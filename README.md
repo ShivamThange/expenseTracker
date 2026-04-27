@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/PWA-Offline_Ready-5A0FC8?style=for-the-badge&logo=pwa" alt="PWA" />
 </p>
 
-<h1 align="center">💚 Riven — Neon Pulse</h1>
+<h1 align="center">Riven</h1>
 
 <p align="center">
   <strong>A full-stack, AI-powered expense splitting & personal finance tracker</strong><br/>
